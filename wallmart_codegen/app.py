@@ -283,7 +283,7 @@ def read_and_update_txt(file_path):
 
 async def main():
     while True:
-        account = read_and_update_csv('accounts.csv')
+        account = read_and_update_txt('accounts.txt') #account = read_and_update_csv('accounts.csv')
         card = read_and_update_txt('cards.txt')
         proxy = read_and_update_txt('proxies.txt')
 
