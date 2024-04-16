@@ -1,4 +1,5 @@
 import asyncio
+import time
 import csv
 import random
 
@@ -33,6 +34,23 @@ def generate_fake_address():
         'zip_code': fake.zipcode()
     }
 
+def w_sleep (timeout=0, method=time.sleep):
+    l = lambda timeout: (timeout + random.randint(0, timeout*(timeout+0.1)*100//10) / 10 % (timeout+0.1))
+    t = l(timeout) if (timeout >= 0) else 0
+    if (method is not None):
+        method(t)
+    print('*sleep:', str(t))
+    return t
+    
+async def a_sleep (timeout=0, method=asyncio.sleep):
+    t = w_sleep(timeout, None)
+    await method(t)
+    return t
+
+#def s_sleep (timeout=0, method=asyncio.sleep):
+#    loop = asyncio.get_event_loop()
+#    loop.run_until_complete(a_sleep(timeout, method))
+#    loop.close()
 
 async def run(config):
     async with async_playwright() as playwright:
@@ -51,53 +69,53 @@ async def run(config):
         await stealth_async(page)
         try:
             await page.goto("https://www.walmart.com/",
-                            timeout=35000,  # https://www.walmart.com/account/login?vid=oaoh
+                            timeout=random.randint(25000, 45000),  # https://www.walmart.com/account/login?vid=oaoh
                             referer="https://www.google.com/search?q=walmart&sourceid=chrome&ie=UTF-8")
         except PlaywrightTimeoutError:
             print("Slow website")
             print("Ignoring wait")
-        await asyncio.sleep(3)
+        await a_sleep(3)
 
         await page.get_by_text("Sign InAccount").click()
-        await asyncio.sleep(3)
+        await a_sleep(3)
         try:
             await page.get_by_text("or create account").click(timeout=3000)
         except PlaywrightTimeoutError:
             print("Now 2nd sign in button, ignoring")
 
-        await asyncio.sleep(5)
+        await a_sleep(4)
 
         email_input_by_name = page.locator('[name="Email Address"]')
         await email_input_by_name.click(timeout=15000)
         await email_input_by_name.press_sequentially(config["email"], delay=random.randint(200, 250))
         await email_input_by_name.fill(config["email"])
-        await asyncio.sleep(2)
+        await a_sleep(2) #await asyncio.sleep(2)
 
         await page.get_by_text("Continue").click()
-        await asyncio.sleep(5)
+        await a_sleep(3) #await asyncio.sleep(5)
 
         first_name_input_by_name = page.locator('[name="firstName"]')
         await first_name_input_by_name.press_sequentially(config["first_name"], delay=random.randint(140, 180))
-        await asyncio.sleep(0.5)
+        await a_sleep(0.5) #await asyncio.sleep(0.5)
 
         last_name_input_by_name = page.locator('[name="lastName"]')
         await last_name_input_by_name.press_sequentially(config["last_name"], delay=random.randint(140, 180))
-        await asyncio.sleep(0.5)
+        await a_sleep(0.5) #await asyncio.sleep(0.5)
 
         phone = await purchase_number()
 
         phone_number_input_by_name = page.locator('[name="phoneNumber"]')
         await phone_number_input_by_name.press_sequentially(phone["phonenumber"],
                                                             delay=random.randint(140, 180))
-        await asyncio.sleep(1)
+        await a_sleep(1)
 
         new_password_input_by_name = page.locator('[name="newPassword"]')
         await new_password_input_by_name.press_sequentially(config["password"], delay=random.randint(140, 180))
 
-        await asyncio.sleep(1)
+        await a_sleep(1)
 
         await page.get_by_text("Continue").last.click()
-        await asyncio.sleep(5)
+        await a_sleep(5)
 
         code = "0"
         while code == "0":
@@ -129,6 +147,7 @@ async def run(config):
         await asyncio.sleep(15)
 
         print("adding payment method")
+        #return
 
         # Danger zone
         try:
@@ -285,14 +304,16 @@ async def main():
     while True:
         account = read_and_update_txt('accounts.txt') #account = read_and_update_csv('accounts.csv')
         card = read_and_update_txt('cards.txt')
-        proxy = read_and_update_txt('proxies.txt')
+        proxy = read_and_update_txt('proxies.txt')[0].split(':')
 
         if not account or not card or not proxy:
             print("No more data available or file missing entries.")
             break
         address = generate_fake_address()
-        config = {**account, 'cc_number': card[0], 'exp_month': card[1], 'exp_year': card[2], 'cvv': card[3],
-                  **proxy, **address}
+        print('address', address) ###
+        #config = {**account, 'cc_number': card[0], 'exp_month': card[1], 'exp_year': card[2], 'cvv': card[3], **proxy}       
+        config = {'email': account[0], 'cc_number': card[0], 'exp_month': card[1], 'exp_year': card[2], 'cvv': card[3],
+        'proxy_server': proxy[0] + ':' + proxy[1], 'proxy_username': proxy[2], 'proxy_password': proxy[3]}
         success = await run(config)
         if success:
             print("Process completed successfully.")
