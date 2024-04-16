@@ -1,0 +1,6 @@
+email,password,first_name,last_name,cc_number,cvv,exp_month,exp_year,street,city,zip_code,state,proxy_server,proxy_username,proxy_password
+haley_baker43@yahoo.com,ypbgkcwFDSwsmeplw.32F,Elizabeth,Lee,1234567890123456,123,07,2028,925 S Chugach St,Palmer,99645,AK,pr.oxylabs.vip:7777,username1,password1
+john_doe123@gmail.com,JDoe#2024,John,Doe,2345678901234567,456,08,2029,101 Main St,Juneau,99801,AK,pr.oxylabs.vip:7777,username2,password2
+jane_smith@outlook.com,pass123JS,Jane,Smith,3456789012345678,789,09,2030,202 Lakeview Ave,Fairbanks,99701,AK,pr.oxylabs.vip:7777,username3,password3
+alice_jones@mail.com,alice2024,Alice,Jones,4567890123456789,012,10,2031,400 Oak St,Anchorage,99501,AK,pr.oxylabs.vip:7777,username4,password4
+bob_brown@live.com,bbrown#1234,Bob,Brown,5678901234567890,234,11,2032,550 Pine Rd,Kodiak,99615,AK,pr.oxylabs.vip:7777,username5,password5
