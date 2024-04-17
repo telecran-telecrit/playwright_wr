@@ -51,7 +51,7 @@ def generate_name():
     return res
 
 def w_sleep (timeout=0, method=time.sleep):
-    l = lambda timeout: (timeout + random.randint(0, timeout*(timeout+0.1)*100//10) / 10 % (timeout+0.1))
+    l = lambda timeout: (timeout + random.randint(0, int(timeout*(timeout+0.1)*100//10)) / 10 % (timeout+0.1))
     t = l(timeout) if (timeout >= 0) else 0
     print('*sleep:', str(t))
     if (method is not None):
