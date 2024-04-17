@@ -9,7 +9,10 @@ import os
 
 sys.path.append(os.path.abspath('./')) # for import helpers
 sys.path.append(os.path.abspath('./playwright_stealth/')) # for import helpers
+sys.path.append(os.path.abspath('./random-address/')) # for import helpers
 from faker import Faker
+import random_address
+
 from playwright.async_api import async_playwright, Playwright, TimeoutError as PlaywrightTimeoutError
 from playwright_stealth import stealth_async
 
@@ -34,20 +37,34 @@ VP = [
 fake = Faker()
 
 
-def generate_fake_address():
-    return {
-        'street': fake.street_address(),
-        'city': fake.city(),
-        'state': fake.state_abbr(),
-        'zip_code': fake.zipcode()
-    }
+def generate_fake_address(): # {'address1': '37600 Sycamore Street', 'address2': '', 'city': 'Newark', 'state': 'CA', 'postalCode': '94560', 'coordinates': {'lat': 37.5261943, 'lng': -122.0304698}}
+    res = {}
+    while (len(res.keys()) < 4 or not('address1' in res) or not('city' in res) or not('address1' in res) or not('postalCode' in res)):
+        r = random.randint(0, 2)
+        if (r == 0):
+            res = random_address.real_random_address_by_state(str(fake.state_abbr()))
+        elif (r == 1):
+            res = random_address.real_random_address_by_postal_code(str(fake.zipcode()))
+        else:
+            res = random_address.real_random_address_by_postal_code(str(random.randint(55001, 99950)))
+    res['street'] = res['address1'] or fake.street_address()
+    res['city'] = res['city'] or fake.city()
+    res['state'] = res['state'] or fake.state_abbr()
+    res['zip_code'] = res['postalCode'] or fake.zipcode()
+    try:
+        del res['postalCode']
+        del res['address1']
+        del res['address2']
+    except:
+        pass
+    return res
     
-def generate_name():
+def generate_name(username=None, userpass=None):
     res = {
         'first_name': fake.first_name_male() if (random.randint(0, 1) == 0) else fake.first_name_female(),
-        'last_name': fake.last_name(),
+        'last_name': fake.last_name(), # TODO: last_name from email username (if exists)
     }
-    res['password'] = res['last_name'][0:1].lower() + res['first_name'][0:1].upper() + res['first_name'][1:-1] + fake.password()
+    res['password'] = res['last_name'][0:1].lower() + res['first_name'][0:1].upper() + res['first_name'][1:-1] + fake.password() if (not userpass) else userpass + res['last_name'][0:1].lower() + res['first_name'][0:1].upper() + fake.password()
     return res
 
 def w_sleep (timeout=0, method=time.sleep):
@@ -246,33 +263,68 @@ async def run(config):
 
             # City
             await frame.locator('input[autocomplete="address-level2"]').type(config["city"])
-            await asyncio.sleep(random.randint(0, 2))
+            await a_sleep(random.randint(0, 2))
 
             # State
             await frame.locator('div[data-automation-id="state-drop-down"] select').select_option(config["state"])
-            await asyncio.sleep(random.randint(0, 2))
+            await a_sleep(random.randint(0, 2))
 
             # Zip code
             await frame.locator('input[autocomplete="postal-code"]').type(config["zip_code"])
-            await asyncio.sleep(random.randint(0, 2))
+            await a_sleep(random.randint(0, 2))
+
+            #await a_sleep(3000)
 
             # Continue
             try:
                 await frame.locator("button[data-test-id='continueBtn']").click()
             except Exception as e:
                 print(e)
-            await asyncio.sleep(5)
+            await a_sleep(5)
 
-            await page.locator("button[data-test-id='continueBtn']").click()
-            await asyncio.sleep(5)
+            try:
+                await page.locator("button[data-test-id='continueBtn']").click()
+                await a_sleep(5)
+            except Exception as e:
+                print(e)
 
             await page.click('button[aria-label="Claim your free 30-day trial"]')
 
         except Exception as e:
             print(e)
+        await a_sleep(4)
+            
+        try:
+            await page.goto("https://www.walmart.com/plus/offer-list", 
+                            timeout=random.randint(15000, 25000),
+                            referer=page.url) # TODO: scroll down to get the offer
+        except PlaywrightTimeoutError:
+            pass
+        await a_sleep(5)
+            
+        try:
+            await page.locator('h3').filter(has_text = "2 free months of Xbox").first().is_visible().click()
+        except:
+            try:
+                await page.locator('div').filter(has_text = "Xbox Game Pass Ultimate").first().is_visible().click()
+            except Exception as e:
+                print(e)
+                pass
+        try:
+            await page.locator("button[aria-label*='2 free months']").filter(has_text = "Get offer").first().click()
+        except:
+            pass       
+            
+        try:
+            page.screenshot(path="screenshot.png", full_page=True)
+        except:
+            pass
 
         await a_sleep(10)
+        
+        
         await browser.close()
+        return True
 
 
 # async def main(parallel_workers=5):
@@ -322,10 +374,16 @@ def read_and_update_csv(file_path):
 
 
 def read_and_update_txt(file_path):
+    lines = []
     with open(file_path, 'r', encoding='utf-8') as file:
-        lines = file.readlines()
+        for line in file:
+            line = line.strip()
+            if (not line or len(line) == 0):
+                continue
+            else:
+                lines.append(line)
 
-    if not lines:
+    if (not lines or (len(lines) == 0)):
         return None
     remaining_lines = lines[1:]
 
@@ -356,19 +414,42 @@ async def main():
     while True:
         success = None
         try:
-            account = read_and_update_txt('accounts.txt') #account = read_and_update_csv('accounts.csv')
-            card = read_and_update_txt('cards.txt')
-            proxy = read_and_update_txt('proxies.txt')[0].split(':')
+            account = None
+            proxy = None
+            card = None
+            name = None
+            try:
+                account = read_and_update_txt('accounts.txt')[0].split(':') #account = read_and_update_csv('accounts.csv')
+                proxy = read_and_update_txt('proxies.txt')[0].split(':')
+                card = read_and_update_txt('cards.txt')
+                name = generate_name(username = account[0], userpass = account[1] if (len(account) >= 2) else None)
+            except:
+                print(traceback.format_exc())
+                if (not account):
+                    print('WARN: Account is empty!')
+                    account = None
+                    name = generate_name()
+                    account = [(name['first_name']+name['last_name']+str(random.randint(1950, 2002))+'@yahoo.com').lower(), name['password']]
+                    print(account)
+                    print(name)
+                    if (not proxy):
+                        proxy = read_and_update_txt('proxies.txt')[0].split(':')
+                    if (not card):
+                        card = read_and_update_txt('cards.txt')
+                else:
+                    card = None
 
-            if not account or not card or not proxy:
+            if (not account or not card or not proxy):
                 print("No more data available or file missing entries.")
                 break
             address = generate_fake_address()
             print('address', address) ###
+            print('email', account) ###
+            print('name', name) ###
             #config = {**account, 'cc_number': card[0], 'exp_month': card[1], 'exp_year': card[2], 'cvv': card[3], **proxy}       
             config = {'email': account[0], 'cc_number': card[0], 'exp_month': card[1], 'exp_year': card[2], 'cvv': card[3],
             'proxy_server': proxy[0] + ':' + proxy[1], 'proxy_username': proxy[2], 'proxy_password': proxy[3],
-            **address, **generate_name(),
+            **address, **name,
             }
             success = await run(config)
         except (Exception, KeyboardInterrupt) as e0:
@@ -380,7 +461,7 @@ async def main():
             print("Process completed successfully.")
             break
         else:
-            restore_txt('accounts.txt', ['|'.join(account)])
+            restore_txt('accounts.txt', [':'.join(account)])
             restore_txt('cards.txt', ['|'.join(card)])
             restore_txt('proxies.txt', [':'.join(proxy)])
             await a_sleep(60)
