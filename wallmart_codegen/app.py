@@ -583,34 +583,33 @@ async def run(config):
                 await frame.locator("button[data-test-id='continueBtn']").click()
                 await a_sleep(5)
             except Exception as e:
-                print(e)
+                pass
             
             try:
                 print(e)
                 await page.locator('button[aria-label="Close dialog"]').click()
                 await a_sleep(2)
             except Exception as e:
-                print(e)
+                pass
             
             try:
                 #await page.locator('button').filter(has_text = "Leave").first().click()
                 await page.locator('button:text("Leave")').first().click()
                 await a_sleep(1.5)
             except Exception as e:
-                print(e)
                 pass
             
             try:
                 await page.get_by_text("Continue & add payment method").click()
                 await a_sleep(2)
             except Exception as e:
-                print(e)
+                pass
             
             try:
                 await page.locator("button[data-test-id='continueBtn']").click()
                 await a_sleep(5)
             except Exception as e:
-                print(e)
+                pass
 
             await page.click('button[aria-label="Claim your free 30-day trial"]')
             
@@ -625,27 +624,28 @@ async def run(config):
             pass
         await a_sleep(5)
             
-        try:
-            await page.locator('h3').filter(has_text = "2 free months of Xbox").first().is_visible().click()
-        except:
-            try:
-                await page.locator('div').filter(has_text = "Xbox Game Pass Ultimate").first().is_visible().click()
-            except Exception as e:
-                print(e)
-                pass
-        try:
-            await page.locator("button[aria-label*='2 free months']").filter(has_text = "Get offer").first().click()
-        except:
-            pass       
             
         try:
-            page.screenshot(path="screenshot.png", full_page=True)
+            await page.locator("button[aria-label*='months of Apple Music']").filter(has_text = "Get offer").first().click()
+        except:
+            try:
+                await page.locator('h3:has-text("Apple Music")').first().is_visible().click()
+            except:
+                try:
+                    await page.locator('div:has-text("5 free months")').first().is_visible().click()
+                except Exception as e:
+                    print(e)
+                    pass
+              
+            
+        try:
+            await page.screenshot(path="screenshot.png", full_page=True)
         except:
             pass
 
         await a_sleep(10)
         
-        await a_sleep(600) ###
+        #await a_sleep(600) ###
         
         try:
             if (_SAVE_COOKIES):
