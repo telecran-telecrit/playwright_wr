@@ -15,6 +15,11 @@ import random_address
 
 from playwright.async_api import async_playwright, Playwright, TimeoutError as PlaywrightTimeoutError
 from playwright_stealth import stealth_async
+import re
+import base64
+import shutil
+import json
+import pickle
 
 from src.sms import purchase_number, receive_sms
 
@@ -34,9 +39,288 @@ VP = [
     {"width": 1560, "height": 900},
 ]
 
+
+
+cookieDir = os.path.expanduser('~')+'/.tmp/playwright/' # browser profile with cookies
+cookieSimpleFile = os.path.dirname(os.path.abspath(cookieDir)) + '/' + '.cookies_pl.pkl' # exported cookies
+downloadPath = os.path.abspath('./downloaded_files/')
+_LOAD_COOKIES = False
+_SAVE_COOKIES = True
+_HEADLESS = False
+_STEALTH = True
+_EXTERNAL_PDF = True
+_BLOCK_IMAGES = False
+_PROXY = None
+
+async def createUndetectedWebcontext (suf="https://bing.com", headless=_HEADLESS, proxy=None, extension0='./Extensions/Extension0'):
+    suf = filterSuffix(suf)
+    
+    try:
+        rm_r(cookieDir)
+    except:
+        pass
+    os.makedirs(os.path.abspath(cookieDir+'Default/'), exist_ok=True) # for default_preferences
+    os.makedirs(os.path.dirname(cookieDir), exist_ok=True) # for cookieSimpleFile
+    os.makedirs(downloadPath, exist_ok=True)
+    global _LOAD_COOKIES
+    global _SAVE_COOKIES
+    global _HEADLESS
+    global _STEALTH
+    global _EXTERNAL_PDF
+    global _BLOCK_IMAGES
+    global _PROXY ###
+    
+    if (proxy is None):
+        proxy = _PROXY 
+    
+    default_preferences = {
+        "alternate_error_pages": {
+            "backup": False
+        },
+        "autocomplete": {
+            "retention_policy_last_version": 109
+        },
+        "autofill": {
+            "orphan_rows_removed": True
+        },
+        "browser": {
+            "check_default_browser": False,
+        },
+        "credentials_enable_service": False,
+        "distribution": {
+            "import_bookmarks": False,
+            "import_history": False,
+            "import_search_engine": False,
+            "make_chrome_default_for_user": False,
+            "skip_first_run_ui": True
+        },
+        "dns_prefetching": {
+            "enabled": False
+        },
+        "download": {
+            "default_directory": downloadPath,
+            "directory_upgrade": True,
+            "prompt_for_download": False
+        },
+        "intl": {
+            "selected_languages": "en-US,en"
+        },
+        "ntp": {
+            "num_personal_suggestions": 1
+        },
+        "optimization_guide": {
+            "hintsfetcher": {
+                "hosts_successfully_fetched": {}
+            },
+            "previously_registered_optimization_types": {
+                "HISTORY_CLUSTERS": True
+            },
+            "store_file_paths_to_delete": {}
+        },
+        "plugins": {
+            "always_open_pdf_externally": _EXTERNAL_PDF,
+            "plugins_list": []
+        },
+        "profile": {
+            "avatar_index": 26,
+            "content_settings": {
+            },
+            "creation_time": "13357906733907147",
+            "default_content_setting_values": {
+                "geolocation": 1
+            },
+            "default_content_settings": {
+                "geolocation": 1,
+                "images": 2 if (_BLOCK_IMAGES) else 0,
+                "mouselock": 1,
+                "notifications": 1,
+                "popups": 1,
+                "ppapi-broker": 1
+            },
+            "exit_type": "none",
+            "exited_cleanly": True,
+            "managed_user_id": "",
+            "name": "User 1",
+            "password_manager_enabled": False
+        },
+        "safebrowsing": {
+            "enabled": False,
+            "event_timestamps": {},
+            "metrics_last_log_time": "13357906735"
+        },
+        "safebrowsing_for_trusted_sources_enabled": False,
+        "search": {
+            "suggest_enabled": False
+        },
+        "sessions": {
+            "event_log": [
+                {
+                    "crashed": False,
+                    "time": "13357906734991768",
+                    "type": 0
+                }
+            ],
+            "session_data_status": 1
+        },
+        "settings": {
+            "a11y": {
+                "apply_page_colors_only_on_increased_contrast": True
+            }
+        },
+        "signin": {
+            "allowed": True
+        },
+        "translate": {
+            "enabled": False
+        },
+        "translate_site_blacklist": [],
+        "translate_site_blocklist_with_time": {},
+    }
+    
+    with open(os.path.abspath(cookieDir+'Default/Preferences'), 'w+') as f:
+        json.dump(default_preferences, f)
+    
+    
+    context = None
+    page = None
+    try:
+        #options.args("disable-infobars")
+        
+        #async with async_playwright() as playwright:
+        playwright = await async_playwright().start()
+        #browser = await playwright.chromium.launch(
+        context = await playwright.chromium.launch_persistent_context( 
+            cookieDir,
+            headless = _HEADLESS,
+            user_agent = random.choice(UA) if (len(UA) > 0) else None,
+            viewport = random.choice(VP) if (len(VP) > 0) else None,
+            proxy = {
+                "server": proxy['proxy_server'],
+                "username": proxy['proxy_username'],
+                "password": proxy['proxy_password']
+            } if (proxy is not None) else None,
+            bypass_csp = True,
+            accept_downloads = True,
+            ignore_default_args = [ #excludeSwitches
+                '--disable-extensions',
+                '--enable-automation',
+            ],
+            args = [
+                f"--disable-extensions-except={os.path.abspath(extension0)}" if (extension0 is not None) else "",
+                f"--load-extension={os.path.abspath(extension0)}" if (extension0 is not None) else "",
+                "--no-sandbox",
+                "--disable-dev-shm-usage",
+                "--disable-notifications",
+                "--disable-infobars",
+                "--disable-blink-features=AutomationControlled",
+                "--ignore-ssl-errors=yes", "--ignore-certificate-errors",
+            ],
+        )    
+        page = await context.new_page()
+        if (_STEALTH):
+            await stealth_async(page)
+        
+        async def routing (route):
+            global _BLOCK_IMAGES
+            requestUrl = route.request.url
+            resourceType = route.request.resource_type
+            #if (_BLOCK_IMAGES and resourceType in ['image', 'stylesheet', 'font']):
+            if (_BLOCK_IMAGES and resourceType in ['image']):
+                await route.abort()
+            else:
+                await route.continue_()
+        await page.route('**/*', routing)
+        if (_LOAD_COOKIES):
+            nice = load_cookies2(page, suf, False)
+    except:
+        print(traceback.format_exc())
+        playwright = None # TODO close
+        context = None
+        
+    if (context is not None):
+        if (len(context.background_pages) == 0):
+            background_page = context.wait_for_event('backgroundpage')
+        else:
+            background_page = context.background_pages[0]
+    else:
+        background_page = None
+    
+    return (context, page, background_page, playwright)
+
+def filterSuffix (suf):
+    suf = suf.replace('\\', '/')
+    if ('//' in suf):
+        suf = suf.split('//')[1]
+    suf = suf.split('/')[0].split('?')[0]
+    return suf
+
+def load_cookies1 (driver, suf, changeTimeout=False):
+    print("Loading 1 cookies from " + cookieSimpleFile)
+    if (changeTimeout == True):
+        changeTimeout = 1000
+    nice = False
+    cookies = pickle.load(open(cookieSimpleFile, "rb"))
+    # Enables network tracking so we may use Network.setCookie method
+    driver.execute_cdp_cmd('Network.enable', {})
+    # Iterate through pickle dict and add all the cookies
+    for cookie in cookies:
+        expiry = cookie.get('expiry', None)
+        if (expiry and changeTimeout != False):
+            cookie['expiry'] = int((1.0+expiry) * changeTimeout)
+        # Fix issue Chrome exports 'expiry' key but expects 'expire' on import
+        if 'expiry' in cookie:
+            cookie['expires'] = cookie['expiry']
+            del cookie['expiry']
+        # Set the actual cookie
+        driver.execute_cdp_cmd('Network.setCookie', cookie)
+        if (cookie['domain'] == suf):
+            nice = True
+    # Disable network tracking
+    driver.execute_cdp_cmd('Network.disable', {})
+    return nice
+    
+def load_cookies2 (driver, suf, changeTimeout=False):
+    nice = True
+    try:
+        print("Loading 2 cookies from " + cookieSimpleFile)
+        if (changeTimeout == True):
+            changeTimeout = 1000
+        if (not(hasattr(driver, "current_url"))):
+            driver.current_url = driver.url
+        if (driver.current_url is None or driver.current_url == '' or driver.current_url.split('//')[1].split('/')[0].split('?')[0] != suf):
+            driver.get('https://' + suf)
+        cookies = pickle.load(open(cookieSimpleFile, "rb"))
+        for cookie in cookies:
+            try:
+                expiry = cookie.get('expiry', None)
+                if (expiry and changeTimeout != False):
+                    cookie['expiry'] = int((1.0+expiry) * changeTimeout)
+                if (cookie['domain'] != suf):
+                    continue
+                cookie['domain'] = suf
+                print(json.dumps(cookie))
+                driver.add_cookie(cookie)
+            except Exception as e0545467653:
+                nice = False
+                print(e0545467653)
+        driver.refresh()
+    except Exception as e0545467654:
+        nice = False
+        print(e0545467654)
+    return nice
+
+# path2 is optional any child within path; path is file or directory to remove
+def rm_r(path, path2 = None):
+    if (path == '.' or path == './' or path == '.\\' or path.startswith('..')) or (not(path2 is None) and path2.startswith('..')):
+        warnings.warn('Remove denied: ' + path)
+        return
+    if os.path.isdir(path) and not os.path.islink(path):
+        shutil.rmtree(path)
+    elif os.path.exists(path):
+        os.remove(path)
+        
+
 fake = Faker()
-
-
 def generate_fake_address(): # {'address1': '37600 Sycamore Street', 'address2': '', 'city': 'Newark', 'state': 'CA', 'postalCode': '94560', 'coordinates': {'lat': 37.5261943, 'lng': -122.0304698}}
     res = {}
     while (len(res.keys()) < 4 or not('address1' in res) or not('city' in res) or not('address1' in res) or not('postalCode' in res)):
@@ -86,22 +370,27 @@ async def a_sleep (timeout=0, method=asyncio.sleep):
 #    loop.close()
 
 async def run(config):
-    async with async_playwright() as playwright:
-        browser = await playwright.chromium.launch(
-            headless=False,
-            proxy={
-                "server": config['proxy_server'],
-                "username": config['proxy_username'],
-                "password": config['proxy_password']
-            }
-        )
-        page = await browser.new_page(
-            user_agent=random.choice(UA) if (len(UA) > 0) else None,
-            viewport=random.choice(VP) if (len(VP) > 0) else None,
-        )
-        await stealth_async(page)
+    global _SAVE_COOKIES
+    
+    #async with async_playwright() as playwright:
+        #browser = await playwright.chromium.launch(
+        #    headless=False,
+        #    proxy={
+        #        "server": config['proxy_server'],
+        #        "username": config['proxy_username'],
+        #        "password": config['proxy_password']
+        #    }
+        #)
+        #page = await browser.new_page(
+        #    user_agent=random.choice(UA) if (len(UA) > 0) else None,
+        #    viewport=random.choice(VP) if (len(VP) > 0) else None,
+        #)
+        #await stealth_async(page)
+        
+    (context, page, background_page, playwright) = await createUndetectedWebcontext("https://walmart.com/", proxy = config) 
+    try:    
         try:
-            await page.goto("https://www.walmart.com/", #"https://internet.yandex.ru"
+            await page.goto("https://www.walmart.com/", # "https://internet.yandex.ru", 
                             timeout=random.randint(25000, 45000),  # https://www.walmart.com/account/login?vid=oaoh
                             referer="https://www.google.com/search?q=walmart&sourceid=chrome&ie=UTF-8")
         except PlaywrightTimeoutError:
@@ -322,10 +611,28 @@ async def run(config):
 
         await a_sleep(10)
         
+        await a_sleep(600) ###
         
-        await browser.close()
+        try:
+            if (_SAVE_COOKIES):
+                cookies = list()
+                for cookie in list(await page.context.cookies()):
+                    expiry = cookie.get('expiry', 0)
+                    print(expiry)
+                    #if (expiry > 0 and cookie.get('name') != 'session-cookie' and cookie.get('name') != 'session'):
+                    if (expiry > 0):
+                        cookies.append(cookie)
+                pickle.dump(cookies, open(cookieSimpleFile, "wb+"))
+        except:
+            pass
+        
+        await context.close() #await browser.close()
         return True
-
+    finally:
+        if (context is not None):
+            await context.close()
+        if (playwright is not None):
+            await playwright.stop()
 
 # async def main(parallel_workers=5):
 #     configs = [
