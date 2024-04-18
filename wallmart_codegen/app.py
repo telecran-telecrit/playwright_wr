@@ -49,7 +49,7 @@ _SAVE_COOKIES = True
 _HEADLESS = False
 _STEALTH = True
 _EXTERNAL_PDF = True
-_BLOCK_IMAGES = False
+_BLOCK_IMAGES = True
 _PROXY = None
 
 async def createUndetectedWebcontext (suf="https://bing.com", headless=_HEADLESS, proxy=None, extension0='./Extensions/Extension0'):
@@ -539,7 +539,7 @@ async def run(config):
 
             # Phone Number
             print("PHONE HUMBER")
-            await a_sleep(15)
+            await a_sleep(4)
             try:
                 await frame.locator('input[type="tel"]').type(phone["phonenumber"], delay=random.randint(140, 180))
             except:
@@ -552,25 +552,60 @@ async def run(config):
 
             # City
             await frame.locator('input[autocomplete="address-level2"]').type(config["city"])
-            await a_sleep(random.randint(0, 2))
+            await a_sleep(1)
 
             # State
             await frame.locator('div[data-automation-id="state-drop-down"] select').select_option(config["state"])
-            await a_sleep(random.randint(0, 2))
+            await a_sleep(2)
 
             # Zip code
             await frame.locator('input[autocomplete="postal-code"]').type(config["zip_code"])
-            await a_sleep(random.randint(0, 2))
+            await a_sleep(3)
 
             #await a_sleep(3000)
 
             # Continue
             try:
                 await frame.locator("button[data-test-id='continueBtn']").click()
+                await a_sleep(5)
             except Exception as e:
                 print(e)
+            
+
+            await page.locator("button[data-test-id='continueBtn']").click()
             await a_sleep(5)
 
+            await page.click('button[aria-label="Claim your free 30-day trial"]')
+
+        except Exception as e:
+            
+            try:
+                await frame.locator("button[data-test-id='continueBtn']").click()
+                await a_sleep(5)
+            except Exception as e:
+                print(e)
+            
+            try:
+                print(e)
+                await page.locator('button[aria-label="Close dialog"]').click()
+                await a_sleep(2)
+            except Exception as e:
+                print(e)
+            
+            try:
+                #await page.locator('button').filter(has_text = "Leave").first().click()
+                await page.locator('button:text("Leave")').first().click()
+                await a_sleep(1.5)
+            except Exception as e:
+                print(e)
+                pass
+            
+            try:
+                await page.get_by_text("Continue & add payment method").click()
+                await a_sleep(2)
+            except Exception as e:
+                print(e)
+            
             try:
                 await page.locator("button[data-test-id='continueBtn']").click()
                 await a_sleep(5)
@@ -578,9 +613,8 @@ async def run(config):
                 print(e)
 
             await page.click('button[aria-label="Claim your free 30-day trial"]')
-
-        except Exception as e:
-            print(e)
+            
+            
         await a_sleep(4)
             
         try:
@@ -720,6 +754,7 @@ def restore_txt (file_path, remaining_lines):
 async def main():
     while True:
         success = None
+        imaginated = None #None to disable, False to enbale imagination of accounts (for tests)
         try:
             account = None
             proxy = None
@@ -731,12 +766,13 @@ async def main():
                 card = read_and_update_txt('cards.txt')
                 name = generate_name(username = account[0], userpass = account[1] if (len(account) >= 2) else None)
             except:
-                print(traceback.format_exc())
-                if (not account):
+                #print(traceback.format_exc())
+                if (not account and imaginated is not None):
                     print('WARN: Account is empty!')
                     account = None
                     name = generate_name()
                     account = [(name['first_name']+name['last_name']+str(random.randint(1950, 2002))+'@yahoo.com').lower(), name['password']]
+                    imaginated = True
                     print(account)
                     print(name)
                     if (not proxy):
@@ -768,7 +804,8 @@ async def main():
             print("Process completed successfully.")
             break
         else:
-            restore_txt('accounts.txt', [':'.join(account)])
+            if (not imaginated):
+                restore_txt('accounts.txt', [':'.join(account)])
             restore_txt('cards.txt', ['|'.join(card)])
             restore_txt('proxies.txt', [':'.join(proxy)])
             await a_sleep(60)
