@@ -6,12 +6,17 @@ import csv
 import random
 import sys
 import os
+import urllib.request
+import requests
 
 sys.path.append(os.path.abspath('./')) # for import helpers
 sys.path.append(os.path.abspath('./playwright_stealth/')) # for import helpers
 sys.path.append(os.path.abspath('./random-address/')) # for import helpers
+sys.path.append(os.path.abspath('./geopy/'))
 from faker import Faker
 import random_address
+from geopy.geocoders import Nominatim
+geocoder = Nominatim(user_agent="open_python")
 
 from playwright.async_api import async_playwright, Playwright, TimeoutError as PlaywrightTimeoutError
 from playwright_stealth import stealth_async
@@ -81,7 +86,8 @@ async def createUndetectedWebcontext (suf="https://bing.com", headless=_HEADLESS
             "retention_policy_last_version": 109
         },
         "autofill": {
-            "orphan_rows_removed": True
+            "orphan_rows_removed": True,
+            "credit_card_enabled": False,
         },
         "browser": {
             "check_default_browser": False,
@@ -191,7 +197,7 @@ async def createUndetectedWebcontext (suf="https://bing.com", headless=_HEADLESS
         #browser = await playwright.chromium.launch(
         context = await playwright.chromium.launch_persistent_context( 
             cookieDir,
-            headless = _HEADLESS,
+            headless = headless,
             user_agent = random.choice(UA) if (len(UA) > 0) else None,
             viewport = random.choice(VP) if (len(VP) > 0) else None,
             proxy = {
@@ -319,28 +325,106 @@ def rm_r(path, path2 = None):
     elif os.path.exists(path):
         os.remove(path)
         
+async def tmp_loader_json (url, proxy):
+    (context, page, background_page, playwright) = await createUndetectedWebcontext("https://example.com/", proxy = proxy, headless = True)
+    data = None
+    await page.goto(url)
+    data = await page.content()
+    await a_sleep(3)
+    await context.close() #await browser.close()
+    await playwright.stop()
+    data = '{' + data.split('>{')[1].split('}<')[0] + '}'
+    return data
+    
+def async_to_sync (awaitable):
+    class MyThread (Thread):
+        def run (self):
+            self.res = None
+            loop = asyncio.new_event_loop() #loop = asyncio.get_event_loop()
+            self.res = loop.run_until_complete(self._run())
+            loop.close()
+            #self.res = asyncio.run(self._run())
+        async def _run (self):
+            self.res = await awaitable
+            return self.res
+    t = MyThread()
+    t.start()
+    try:
+        t.join()
+    except KeyboardInterrupt:
+        pass
+    return t.res
+
 
 fake = Faker()
-def generate_fake_address(): # {'address1': '37600 Sycamore Street', 'address2': '', 'city': 'Newark', 'state': 'CA', 'postalCode': '94560', 'coordinates': {'lat': 37.5261943, 'lng': -122.0304698}}
+def generate_fake_address(proxy = None): # {'address1': '37600 Sycamore Street', 'address2': '', 'city': 'Newark', 'state': 'CA', 'postalCode': '94560', 'coordinates': {'lat': 37.5261943, 'lng': -122.0304698}}
+    if (proxy is not None):
+        if ('proxy_username' in proxy and 'proxy_password' in proxy):
+            os.environ['HTTP_PROXY'] = 'http://' + proxy['proxy_username'] + ':' + proxy['proxy_password'] + '@' + proxy['proxy_server']
+            os.environ['HTTPS_PROXY'] = 'http://' + proxy['proxy_username'] + ':' + proxy['proxy_password'] + '@' + proxy['proxy_server']
+            os.environ['http_proxy'] = 'http://' + proxy['proxy_username'] + ':' + proxy['proxy_password'] + '@' + proxy['proxy_server']
+            os.environ['https_proxy'] = 'http://' + proxy['proxy_username'] + ':' + proxy['proxy_password'] + '@' + proxy['proxy_server']
+        else:
+            os.environ['HTTP_PROXY'] = 'http://' + proxy['proxy_server']
+            os.environ['HTTPS_PROXY'] = 'http://' + proxy['proxy_server']
+            os.environ['http_proxy'] = 'http://' + proxy['proxy_server']
+            os.environ['https_proxy'] = 'http://' + proxy['proxy_server']
     res = {}
     while (len(res.keys()) < 4 or not('address1' in res) or not('city' in res) or not('address1' in res) or not('postalCode' in res)):
-        r = random.randint(0, 2)
+        r = random.randint(0, 4)
         if (r == 0):
+            print('way 0: by_state')
             res = random_address.real_random_address_by_state(str(fake.state_abbr()))
         elif (r == 1):
+            print('way 1: by_postal_code')
             res = random_address.real_random_address_by_postal_code(str(fake.zipcode()))
-        else:
+        elif (r == 2):
+            print('way 2: by randint code')
             res = random_address.real_random_address_by_postal_code(str(random.randint(55001, 99950)))
-    res['street'] = res['address1'] or fake.street_address()
-    res['city'] = res['city'] or fake.city()
-    res['state'] = res['state'] or fake.state_abbr()
-    res['zip_code'] = res['postalCode'] or fake.zipcode()
+        elif (r == 3):
+            print('way 3: by ip api json')
+            try:
+                ###data = async_to_sync(tmp_loader_json('http://ip-api.com/json', proxy))
+                with urllib.request.urlopen('http://ip-api.com/json') as data:
+                ##with requests.get('http://ip-api.com/json') as data:
+                    data = json.load(data)
+                    ##data = json.loads(data)
+                    res['state'] = data['region']
+                    res['city'] = data['city']
+                    try:
+                        res['address1'] = random_address.real_random_address_by_postal_code(data['zip'])['address1'] 
+                        res['state'] = random_address.real_random_address_by_postal_code(data['zip'])['state']
+                    except:
+                        res = random_address.real_random_address_by_state(str(res['state']))
+                        pass
+                        #res['address1'] = (data['timezone'].split('/')[1] if ('/' in data['timezone']) else data['timezone'].split('/')[0]) + ' street'
+                    res['postalCode'] = data['zip']
+                    print('res', res)
+            except:
+                print(traceback.format_exc())
+                pass
+        else:
+            print('way 4: by geo json')
+            pass
+            
+    res['street'] = res['address1'] if ('address1' in res) else fake.street_address()
+    res['city'] = res['city'] if ('city' in res) else fake.city()
+    res['state'] = res['state'] if ('state' in res) else fake.state_abbr()
+    res['zip_code'] = res['postalCode'] if ('postalCode' in res) else fake.zipcode()
     try:
         del res['postalCode']
         del res['address1']
         del res['address2']
     except:
         pass
+    os.environ['HTTP_PROXY'] = ''
+    del os.environ['HTTP_PROXY']
+    os.environ['HTTPS_PROXY'] = ''
+    del os.environ['HTTPS_PROXY']
+    os.environ['http_proxy'] = ''
+    del os.environ['http_proxy']
+    os.environ['https_proxy'] = ''
+    del os.environ['https_proxy']
     return res
     
 def generate_name(username=None, userpass=None):
@@ -593,8 +677,8 @@ async def run(config):
                 pass
             
             try:
-                #await page.locator('button').filter(has_text = "Leave").first().click()
-                await page.locator('button:text("Leave")').first().click()
+                #await page.locator('button').filter(has_text = "Leave").first.click()
+                await page.locator('button:text("Leave")').first.click()
                 await a_sleep(1.5)
             except Exception as e:
                 pass
@@ -626,18 +710,24 @@ async def run(config):
             
             
         try:
-            await page.locator("button[aria-label*='months of Apple Music']").filter(has_text = "Get offer").first().click()
-        except:
+            await page.locator('button[aria-label*="months of Apple Music"]').filter(has_text = "Get offer").first.click()
+        except Exception as e:
+            print('1')
             try:
-                await page.locator('h3:has-text("Apple Music")').first().is_visible().click()
-            except:
+                l = page.locator('div:has-text("5 free months")').filter(has = page.locator('button')).last
+                if (await l.is_visible()):
+                    await l.locator('button').first.click()
+            except Exception as e:
+                print('2')
                 try:
-                    await page.locator('div:has-text("5 free months")').first().is_visible().click()
+                    l = page.locator('h3:has-text("Apple Music")').filter(has = page.locator('button')).first
+                    if (await l.is_visible()):
+                        await l.get_by_role('button').first.click()
                 except Exception as e:
-                    print(e)
-                    pass
-              
-            
+                    print('3')
+                    raise e
+          
+        await a_sleep(2)
         try:
             await page.screenshot(path="screenshot.png", full_page=True)
         except:
@@ -645,7 +735,7 @@ async def run(config):
 
         await a_sleep(10)
         
-        #await a_sleep(600) ###
+        await a_sleep(600) ###
         
         try:
             if (_SAVE_COOKIES):
@@ -785,7 +875,7 @@ async def main():
             if (not account or not card or not proxy):
                 print("No more data available or file missing entries.")
                 break
-            address = generate_fake_address()
+            address = generate_fake_address({'proxy_server': proxy[0] + ':' + proxy[1], 'proxy_username': proxy[2], 'proxy_password': proxy[3]})
             print('address', address) ###
             print('email', account) ###
             print('name', name) ###
@@ -807,7 +897,7 @@ async def main():
             if (not imaginated):
                 restore_txt('accounts.txt', [':'.join(account)])
             restore_txt('cards.txt', ['|'.join(card)])
-            restore_txt('proxies.txt', [':'.join(proxy)])
+            #restore_txt('proxies.txt', [':'.join(proxy)]) # NO
             await a_sleep(60)
             print("Retrying with next available data set...")
         await a_sleep(1)
