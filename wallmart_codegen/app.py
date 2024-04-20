@@ -562,18 +562,28 @@ async def randomButtonClick (page):
             return
         if (await page.locator(m).nth(i).is_visible()):
             await a_sleep(1)
-            await page.locator(m).nth(i).hover()
-            await a_sleep(1)
+            #await page.locator(m).nth(i).hover()
+            #await a_sleep(1)
             await page.locator(m).nth(i).click()
             await a_sleep(1)
             break
             
+async def bringToFront (page):
+    cdp = await page.context.new_cdp_session(page) 
+    await cdp.send("Page.bringToFront", {}); # execute_cdp_cmd
+    
 async def randomClicks (page):
     t = random.randint(3, 5)
     j = 0
     while (j < t):
         j = j + 1
         await randomButtonClick(page)
+        await a_sleep(1.5)
+        await bringToFront(page)
+
+async def locator_press_sequentially2 (locator, data, nearDealy=100):
+    for h in data:
+        await locator.press_sequentially(h, delay=random.randint(nearDealy, nearDealy+200))
 
 async def run (config):
     global _SAVE_COOKIES
@@ -597,7 +607,7 @@ async def run (config):
     try:    
         try:
             await page.goto("https://www.walmart.com/", # "https://internet.yandex.ru", 
-                            timeout=random.randint(25000, 45000),  # https://www.walmart.com/account/login?vid=oaoh
+                            timeout=random.randint(5000, 7000),  # https://www.walmart.com/account/login?vid=oaoh
                             referer="https://www.google.com/search?q=walmart&sourceid=chrome&ie=UTF-8")
         except PlaywrightTimeoutError:
             print("Slow website")
@@ -606,6 +616,7 @@ async def run (config):
         
         await randomClicks(page)
         await a_sleep(2)
+        await bringToFront(page)
         
         try:
             await page.goto("https://walmart.com/",
@@ -641,7 +652,7 @@ async def run (config):
             print("!captcha")
             return None
         
-        await email_input_by_name.press_sequentially(config["email"], delay=random.randint(320, 460))
+        await locator_press_sequentially2(email_input_by_name, config["email"], random.randint(320, 460))
         await email_input_by_name.fill(config["email"])
         await a_sleep(2) #await asyncio.sleep(2)
             
@@ -650,11 +661,11 @@ async def run (config):
 
         try:
             first_name_input_by_name = page.locator('[name="firstName"]')
-            await first_name_input_by_name.press_sequentially(config["first_name"], delay=random.randint(320, 460))
+            await locator_press_sequentially2(first_name_input_by_name, config["first_name"], random.randint(320, 460))
             await a_sleep(0.5) #await asyncio.sleep(0.5)
 
             last_name_input_by_name = page.locator('[name="lastName"]')
-            await last_name_input_by_name.press_sequentially(config["last_name"], delay=random.randint(320, 460))
+            await locator_press_sequentially2(last_name_input_by_name, config["last_name"], random.randint(320, 460))
             await a_sleep(0.5) #await asyncio.sleep(0.5)
 
             phone = None
@@ -668,15 +679,14 @@ async def run (config):
                     phone = False
 
             phone_number_input_by_name = page.locator('[name="phoneNumber"]')
-            await phone_number_input_by_name.press_sequentially(phone["phonenumber"],
-                                                                delay=random.randint(140, 180))
+            await locator_press_sequentially2(phone_number_input_by_name, phone["phonenumber"], random.randint(140, 180))
             await a_sleep(1)
 
             new_password_input_by_name = page.locator('[name="newPassword"]')
         except:
             new_password_input_by_name = page.locator('[name="password"]')
             
-        await new_password_input_by_name.press_sequentially(config["password"], delay=random.randint(460, 580))
+        await locator_press_sequentially2(new_password_input_by_name, config["password"], random.randint(460, 580))
 
         await a_sleep(1)
 
