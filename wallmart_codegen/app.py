@@ -48,7 +48,7 @@ VP = [
     {"width": 1600, "height": 900},
     {"width": 1680, "height": 1050},
     {"width": 2560, "height": 1440}, # QHD
-    {"width": 3840, "height": 2160}, # 4K UHD
+#    {"width": 3840, "height": 2160}, # 4K UHD
 ]
 
 
@@ -61,7 +61,7 @@ _SAVE_COOKIES = True
 _HEADLESS = False
 _STEALTH = True
 _EXTERNAL_PDF = True
-_BLOCK_IMAGES = False ##
+_BLOCK_IMAGES = True ##
 _PROXY = None
 
 async def createUndetectedWebcontext (suf="https://bing.com", headless=_HEADLESS, proxy=None, extension0='./Extensions/Extension0'):
@@ -403,7 +403,6 @@ def generate_fake_address(proxy = None): # {'address1': '37600 Sycamore Street',
                         pass
                         #res['address1'] = (data['timezone'].split('/')[1] if ('/' in data['timezone']) else data['timezone'].split('/')[0]) + ' street'
                     res['postalCode'] = data['zip']
-                    print('res', res)
             except:
                 print(traceback.format_exc())
                 pass
@@ -561,11 +560,11 @@ async def randomButtonClick (page):
             count = 0
             return
         if (await page.locator(m).nth(i).is_visible()):
-            await a_sleep(1)
+            await a_sleep(2)
             #await page.locator(m).nth(i).hover()
             #await a_sleep(1)
             await page.locator(m).nth(i).click()
-            await a_sleep(1)
+            await a_sleep(5)
             break
             
 async def bringToFront (page):
@@ -577,13 +576,30 @@ async def randomClicks (page):
     j = 0
     while (j < t):
         j = j + 1
-        await randomButtonClick(page)
-        await a_sleep(1.5)
-        await bringToFront(page)
+        try:
+            await randomButtonClick(page)
+            await a_sleep(1.5)
+            await bringToFront(page)
+        except:
+            pass
 
-async def locator_press_sequentially2 (locator, data, nearDealy=100):
+async def locator_press_sequentially2 (locator, data, nearDealy=100, humanErrors=True):
+    print('locator_press_sequentially2: ', str(locator), str(data))
+    i = 0
     for h in data:
-        await locator.press_sequentially(h, delay=random.randint(nearDealy, nearDealy+200))
+        if (humanErrors and random.randint(0, 10) == 0):
+            try:
+                await locator.press_sequentially(data[i + 1], delay=random.randint(nearDealy, nearDealy+200))
+            except:
+                try:
+                    await locator.press_sequentially(data[i - 1], delay=random.randint(nearDealy, nearDealy+200))
+                except:
+                    await locator.press_sequentially(h, delay=random.randint(nearDealy, nearDealy+200))
+            await a_sleep(1)
+            await locator.press('Backspace')
+            await a_sleep(1.2)
+        await locator.press_sequentially(h, delay=random.randint(nearDealy, nearDealy+200)) # await page.locator("#number").type(h, random.randint(nearDealy, nearDealy+200))
+        i = i + 1
 
 async def run (config):
     global _SAVE_COOKIES
@@ -652,7 +668,7 @@ async def run (config):
             print("!captcha")
             return None
         
-        await locator_press_sequentially2(email_input_by_name, config["email"], random.randint(320, 460))
+        await locator_press_sequentially2(email_input_by_name, config["email"], random.randint(200, 250))
         await email_input_by_name.fill(config["email"])
         await a_sleep(2) #await asyncio.sleep(2)
             
@@ -661,11 +677,11 @@ async def run (config):
 
         try:
             first_name_input_by_name = page.locator('[name="firstName"]')
-            await locator_press_sequentially2(first_name_input_by_name, config["first_name"], random.randint(320, 460))
+            await locator_press_sequentially2(first_name_input_by_name, config["first_name"], random.randint(140, 180))
             await a_sleep(0.5) #await asyncio.sleep(0.5)
 
             last_name_input_by_name = page.locator('[name="lastName"]')
-            await locator_press_sequentially2(last_name_input_by_name, config["last_name"], random.randint(320, 460))
+            await locator_press_sequentially2(last_name_input_by_name, config["last_name"], random.randint(140, 180))
             await a_sleep(0.5) #await asyncio.sleep(0.5)
 
             phone = None
@@ -684,9 +700,10 @@ async def run (config):
 
             new_password_input_by_name = page.locator('[name="newPassword"]')
         except:
+            print(traceback.format_exc())
             new_password_input_by_name = page.locator('[name="password"]')
             
-        await locator_press_sequentially2(new_password_input_by_name, config["password"], random.randint(460, 580))
+        await locator_press_sequentially2(new_password_input_by_name, config["password"], random.randint(200, 250))
 
         await a_sleep(1)
 
@@ -712,15 +729,13 @@ async def run (config):
         await a_sleep(15)
 
         try:
-            await page.get_by_text("I agree to the terms (required)").click(timeout=60000)
+            await a_sleep(1, page.get_by_text, "I agree to the terms (required)", 'click(timeout=60000)')
         except PlaywrightTimeoutError:
             print("Subscription page not visible. Reloading")
             await page.reload()
-            await page.get_by_text("I agree to the terms (required)").click(timeout=60000)
+            await a_sleep(1, page.get_by_text, "I agree to the terms (required)", 'click(timeout=60000)')
 
-        await page.get_by_text("Continue & add payment method").click(timeout=60000)
-
-        await a_sleep(15)
+        await a_sleep(10, page.get_by_text, "Continue & add payment method", 'click(timeout=60000)')
 
         print("adding payment method")
         #return ###
@@ -728,54 +743,51 @@ async def run (config):
         # Danger zone
         try:
             frame = page.frame_locator("#payments-wallet-chooser")
-            await frame.get_by_text("Add a new payment method").click(timeout=45000)
-
-            await a_sleep(3)
+            
+            await a_sleep(3, frame.get_by_text, "Add a new payment method", 'click(timeout=45000)')
 
             # CC
-            await frame.locator("#cc-number").type(config["cc_number"], delay=random.randint(140, 180))
+            await locator_press_sequentially2(frame.locator("#cc-number"), config["cc_number"], random.randint(140, 180))
             await a_sleep(2)
 
             # First name
-            first_name_input_by_name = frame.locator('[name="firstName"]').last
-            await first_name_input_by_name.type(config["first_name"], delay=random.randint(140, 180))
+            
+            await locator_press_sequentially2(first_name_input_by_name := frame.locator('[name="firstName"]').last, config["first_name"], random.randint(140, 180), False)
             await a_sleep(2)
 
             # Last name
-            last_name_input_by_name = frame.locator('[name="lastName"]').last
-            await last_name_input_by_name.type(config["last_name"], delay=random.randint(140, 180))
+            await locator_press_sequentially2(last_name_input_by_name := frame.locator('[name="lastName"]').last, config["last_name"], random.randint(140, 180), False)
             await a_sleep(2)
 
             # Month
             # await frame.locator("#react-aria-8").select_option("04")
-            await frame.locator('div[data-testid="selectMMContainer"] select').select_option(config["exp_month"])
-            await a_sleep(2)
+            #await frame.locator('div[data-testid="selectMMContainer"] select').select_option(config["exp_month"])
+            await (await a_sleep(2, frame.locator, 'div[data-testid="selectMMContainer"] select')).select_option(config["exp_month"])
 
             # Year
             # await frame.locator("#react-aria-8").select_option("04")
-            await frame.locator('div[data-testid="selectYYContainer"] select').select_option(config["exp_year"])
-            await a_sleep(2)
+            #await frame.locator('div[data-testid="selectYYContainer"] select').select_option(config["exp_year"])
+            await (await a_sleep(2, frame.locator, 'div[data-testid="selectYYContainer"] select')).select_option(config["exp_year"])
 
             # CVV
-            last_name_input_by_name = frame.locator('[name="cvv"]')
-            await last_name_input_by_name.type(config["cvv"], delay=random.randint(140, 180))
+            await locator_press_sequentially2(frame.locator('[name="cvv"]').first, config["cvv"], random.randint(140, 180), False)
             await a_sleep(2)
 
             # Phone Number
             print("PHONE HUMBER")
             await a_sleep(4)
             try:
-                await frame.locator('input[type="tel"]').type(phone["phonenumber"], delay=random.randint(140, 180))
+                await locator_press_sequentially2(frame.locator('input[type="tel"]'), phone["phonenumber"], random.randint(140, 180))
             except:
-                await frame.locator('input[autocomplete="tel-national"]').type(phone["phonenumber"], delay=random.randint(140, 180))
+                await locator_press_sequentially2(frame.locator('input[autocomplete="tel-national"]'), phone["phonenumber"], random.randint(140, 180))
             await a_sleep(3)
 
             # Street address
-            await frame.locator('input[name="newBillingAddress.addressLineOne"]').type(config["street"])
+            await locator_press_sequentially2(frame.locator('input[name="newBillingAddress.addressLineOne"]'), config["street"], random.randint(140, 180))
             await a_sleep(2)
 
-            # City
-            await frame.locator('input[autocomplete="address-level2"]').type(config["city"])
+            # City)
+            await locator_press_sequentially2(frame.locator('input[autocomplete="address-level2"]'), config["city"], random.randint(140, 180))
             await a_sleep(1)
 
             # State
@@ -783,59 +795,57 @@ async def run (config):
             await a_sleep(2)
 
             # Zip code
-            await frame.locator('input[autocomplete="postal-code"]').type(config["zip_code"])
+            await locator_press_sequentially2(frame.locator('input[autocomplete="postal-code"]'), config["zip_code"], random.randint(140, 180))
             await a_sleep(3)
 
             #await a_sleep(3000)
 
             # Continue
             try:
-                await frame.locator("button[data-test-id='continueBtn']").click()
-                await a_sleep(5)
+                await (await a_sleep(5, frame.locator, "button[data-test-id='continueBtn']")).click()
             except Exception as e:
                 print(e)
             
+            try:
+                await (await a_sleep(5, page.locator, "button[data-test-id='continueBtn']")).click()
+            except Exception as e:
+                print(e)
 
-            await page.locator("button[data-test-id='continueBtn']").click()
-            await a_sleep(5)
-
-            await page.click('button[aria-label="Claim your free 30-day trial"]')
-
+            await (await a_sleep(2, page.locator, 'button[aria-label="Claim your free 30-day trial"]')).click()
         except Exception as e:
             
             try:
-                await frame.locator("button[data-test-id='continueBtn']").click()
-                await a_sleep(5)
+                await (await a_sleep(5, frame.locator, "button[data-test-id='continueBtn']")).click()
             except Exception as e:
+                print('... failed')
                 pass
             
             try:
-                print(e)
-                await page.locator('button[aria-label="Close dialog"]').click()
-                await a_sleep(2)
+                await a_sleep(2, page.locator, 'button[aria-label="Close dialog"]', 'click')
             except Exception as e:
+                print('... failed')
                 pass
             
             try:
                 #await page.locator('button').filter(has_text = "Leave").first.click()
-                await page.locator('button:text("Leave")').first.click()
-                await a_sleep(1.5)
+                await (await a_sleep(1.5, page.locator, 'button:has-text("Leave")')).first.click()
             except Exception as e:
+                print('... failed')
                 pass
             
             try:
-                await page.get_by_text("Continue & add payment method").click()
-                await a_sleep(2)
+                await (await a_sleep(2, page.get_by_text, "Continue & add payment method")).click()
             except Exception as e:
+                print('... failed')
                 pass
             
             try:
-                await page.locator("button[data-test-id='continueBtn']").click()
-                await a_sleep(5)
+                await (await a_sleep(5, page.locator, "button[data-test-id='continueBtn']")).click()
             except Exception as e:
+                print('... failed')
                 pass
 
-            await page.click('button[aria-label="Claim your free 30-day trial"]')
+            await (await a_sleep(0, page.locator, 'button[aria-label="Claim your free 30-day trial"]')).click()
             
             
         await a_sleep(4)
@@ -867,15 +877,18 @@ async def run (config):
                     print('3')
                     raise e
           
-        await a_sleep(2)
+        await a_sleep(7)
+        
+        greenCode = await (await a_sleep(2, page.locator, 'div span.green')).first.text_content()
+        if (not(greenCode)):
+            return None
+        
         try:
             await page.screenshot(path="screenshot.png", full_page=True)
         except:
             pass
 
-        await a_sleep(10)
-        
-        await a_sleep(600) ###
+        await a_sleep(2)
         
         try:
             if (_SAVE_COOKIES):
@@ -891,12 +904,15 @@ async def run (config):
             pass
         
         await context.close() #await browser.close()
-        return True
+        return (0, greenCode, str("+1") + phone["phonenumber"] if (not(phone["phonenumber"][0] == '+') and not(phone["phonenumber"][0] == '1')) else phone["phonenumber"], config["email"], config["password"], config["first_name"] + ' ' + config["last_name"], config["city"], config["state"])
     finally:
-        if (context is not None):
-            await context.close()
-        if (playwright is not None):
-            await playwright.stop()
+        try:
+            if (context is not None):
+                await context.close()
+            if (playwright is not None):
+                await playwright.stop()
+        except:
+            pass
 
 # async def main(parallel_workers=5):
 #     configs = [
@@ -1030,8 +1046,10 @@ async def main():
             print(e0)
             print(traceback.format_exc())
         print('success: ', success)
-        if success:
-            print("Process completed successfully.")
+        if (not(not(success))):
+            print("Process completed successfully. ", success)
+            (error, greenCode, phonenumber, email, password, fullname, city, state) = success
+            print(f"{bcolors.OKGREEN} SUCCESS: {greenCode}{bcolors.ENDC}")
             break
         else:
             if (not imaginated):
@@ -1042,5 +1060,15 @@ async def main():
             print("Retrying with next available data set...")
         await a_sleep(1)
 
+class bcolors:
+    HEADER = '\033[95m'
+    OKBLUE = '\033[94m'
+    OKCYAN = '\033[96m'
+    OKGREEN = '\033[92m'
+    WARNING = '\033[93m'
+    FAIL = '\033[91m'
+    BOLD = '\033[1m'
+    UNDERLINE = '\033[4m'
+    ENDC = '\033[0m'
 
 asyncio.run(main())
