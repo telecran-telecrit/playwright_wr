@@ -38,10 +38,17 @@ UA = [
 ]
 
 VP = [
-    {"width": 1920, "height": 1080},
+    {"width": 1920, "height": 1080}, # Full HD
+    {"width": 1366, "height": 768},
     {"width": 1280, "height": 1024},
+    {"width": 1024, "height": 768},
     {"width": 1280, "height": 800},
     {"width": 1560, "height": 900},
+    {"width": 1440, "height": 900},
+    {"width": 1600, "height": 900},
+    {"width": 1680, "height": 1050},
+    {"width": 2560, "height": 1440}, # QHD
+    {"width": 3840, "height": 2160}, # 4K UHD
 ]
 
 
@@ -54,7 +61,7 @@ _SAVE_COOKIES = True
 _HEADLESS = False
 _STEALTH = True
 _EXTERNAL_PDF = True
-_BLOCK_IMAGES = True
+_BLOCK_IMAGES = False ##
 _PROXY = None
 
 async def createUndetectedWebcontext (suf="https://bing.com", headless=_HEADLESS, proxy=None, extension0='./Extensions/Extension0'):
@@ -370,19 +377,16 @@ def generate_fake_address(proxy = None): # {'address1': '37600 Sycamore Street',
             os.environ['http_proxy'] = 'http://' + proxy['proxy_server']
             os.environ['https_proxy'] = 'http://' + proxy['proxy_server']
     res = {}
+    r = -1
     while (len(res.keys()) < 4 or not('address1' in res) or not('city' in res) or not('address1' in res) or not('postalCode' in res)):
         r = random.randint(0, 4)
         if (r == 0):
-            print('way 0: by_state')
             res = random_address.real_random_address_by_state(str(fake.state_abbr()))
         elif (r == 1):
-            print('way 1: by_postal_code')
             res = random_address.real_random_address_by_postal_code(str(fake.zipcode()))
         elif (r == 2):
-            print('way 2: by randint code')
             res = random_address.real_random_address_by_postal_code(str(random.randint(55001, 99950)))
         elif (r == 3):
-            print('way 3: by ip api json')
             try:
                 ###data = async_to_sync(tmp_loader_json('http://ip-api.com/json', proxy))
                 with urllib.request.urlopen('http://ip-api.com/json') as data:
@@ -404,8 +408,18 @@ def generate_fake_address(proxy = None): # {'address1': '37600 Sycamore Street',
                 print(traceback.format_exc())
                 pass
         else:
-            print('way 4: by geo json')
             pass
+    
+    if (r == 0):
+        print(str(r) + ' way: by_state')
+    elif (r == 1):
+        print(str(r) + ' way: by_postal_code')
+    elif (r == 2):
+        print(str(r) + ' way: by randint code')
+    elif (r == 3):
+        print(str(r) + ' way: by ip api json')
+    else:
+        print(str(r) + ' way: by geo json')
             
     res['street'] = res['address1'] if ('address1' in res) else fake.street_address()
     res['city'] = res['city'] if ('city' in res) else fake.city()
@@ -435,25 +449,133 @@ def generate_name(username=None, userpass=None):
     res['password'] = res['last_name'][0:1].lower() + res['first_name'][0:1].upper() + res['first_name'][1:-1] + fake.password() if (not userpass) else userpass + res['last_name'][0:1].lower() + res['first_name'][0:1].upper() + fake.password()
     return res
 
-def w_sleep (timeout=0, method=time.sleep):
+def _is_safe (argvalue):
+    return '(' not in argvalue and ')' not in argvalue and '{' not in argvalue and '}' not in argvalue and ':' not in argvalue and '=' not in argvalue and ';' not in argvalue and '#' not in argvalue and '*' not in argvalue and '/' not in argvalue and '\\' not in argvalue and '%' not in argvalue and '-' not in argvalue and '+' not in argvalue and '!' not in argvalue and '?' not in argvalue and '<' not in argvalue and '>' not in argvalue and 'lambda' not in argvalue
+
+def parse_args (str_args):
+    res = {}
+    if ((not(str_args.find('=') >= 0)) != (not(str_args.find(':') >= 0 and str_args.find('{') >= 0 and str_args.find('}') >= 0))):
+        if (str_args.find(':') >= 0):
+            str_args = str_args[str_args.index('{') + 1:str_args.rindex('}')]
+            str_args = str_args.replace(':', '=')
+        res = {}
+        for item in str_args.split(','):
+            argname, argvalue = item.split('=')
+            argvalue = argvalue.strip()
+            if (argvalue[0] == argvalue[-1] and (argvalue[0] == '"' or argvalue[0] == "'")):
+                argvalue = argvalue[1:-1]
+            elif (_is_safe(argvalue)):
+                argvalue = eval(argvalue)
+            else:
+                argvalue = None
+            res.update({argname.strip(): argvalue})
+    else:
+        str_args = str_args.strip()
+        if (len(str_args) == 0 or str_args == ','):
+            return []
+        res = str_args.split(',')
+        res = list(map(lambda x: eval(x.strip()) if (_is_safe(x.strip())) else None, res))
+    return res
+
+def some_time (timeout=0):
     l = lambda timeout: (timeout + random.randint(0, int(timeout*(timeout+0.1)*100//10)) / 10 % (timeout+0.1))
     t = l(timeout) if (timeout >= 0) else 0
-    print('*sleep:', str(t))
+    return t
+
+def v_sleep (timeout=0, page_locator=None, title='', method=time.sleep):
+    t = some_time(timeout)
+    print('*sleep:', str(t), '' if (not title) else '' + str(title))
+    r = None
+    if (page_locator is not None):
+        r = page_locator(title)
     if (method is not None):
         method(t)
-    return t
+    return (t, r)
+    
+def w_sleep (timeout=0, page_locator=None, title='', locator_action='', method=time.sleep):
+    (t, r) = v_sleep(timeout = timeout, page_locator = page_locator, title = title, method = method)
+    if (locator_action is not None and locator_action.strip() != ''):
+        m = getattr(r, locator_action)
+        m = m()
+    return r
 
-async def a_sleep (timeout=0, method=asyncio.sleep):
-    t = w_sleep(timeout, None)
-    await method(t)
-    return t
+async def a_sleep (timeout=0, page_locator=None, title='', locator_action='', method=asyncio.sleep):
+    (t, r) = v_sleep(timeout = timeout, page_locator = page_locator, title = title, method = None)
+    try:
+        r = await r
+    except:
+        pass
+    if (page_locator is not None and r is not None):
+        m = r
+        if (locator_action is not None and locator_action.strip() != ''):
+            locator_action_args = {}
+            if ('(' in locator_action and ')' in locator_action):
+                locator_action_args = parse_args(locator_action[locator_action.index('(') + 1:locator_action.rindex(')')])
+                locator_action = locator_action[0:locator_action.index('(')]
+            else:
+                locator_action_args = {}
+            m = getattr(r, locator_action)
+            print(locator_action_args)
+            if (isinstance(locator_action_args, list)):
+                m = m(*locator_action_args)
+            else:
+                m = m(**locator_action_args)
+            try:
+                m = await m
+            except:
+                pass
+    
+    try:
+        await method(t)
+    except:
+        method(t)
+    return r
 
-#def s_sleep (timeout=0, method=asyncio.sleep):
+#def s_sleep (timeout=0, title='', method=asyncio.sleep):
 #    loop = asyncio.get_event_loop()
-#    loop.run_until_complete(a_sleep(timeout, method))
+#    loop.run_until_complete(a_sleep(timeout, title, method))
 #    loop.close()
 
-async def run(config):
+async def randomButtonClick (page):
+    target = None
+    j = 0
+    while (j < 100):
+        j = j + 1
+        t = random.randint(0, 20)
+        m = ''
+        if (t == 0):
+            m = 'button'
+        elif (t == 1):
+            m = 'input[type="button"]'
+        elif (t == 2):
+            m = 'input'
+        else:
+            m = 'a'
+        b = page.locator(m)
+        count = await b.count()
+        if (count > 1):
+            i = random.randint(0, count - 1)
+        else:
+            i = 0
+        if (random.randint(0, 10) == 0):
+            count = 0
+            return
+        if (await page.locator(m).nth(i).is_visible()):
+            await a_sleep(1)
+            await page.locator(m).nth(i).hover()
+            await a_sleep(1)
+            await page.locator(m).nth(i).click()
+            await a_sleep(1)
+            break
+            
+async def randomClicks (page):
+    t = random.randint(3, 5)
+    j = 0
+    while (j < t):
+        j = j + 1
+        await randomButtonClick(page)
+
+async def run (config):
     global _SAVE_COOKIES
     
     #async with async_playwright() as playwright:
@@ -480,11 +602,22 @@ async def run(config):
         except PlaywrightTimeoutError:
             print("Slow website")
             print("Ignoring wait")
-        await a_sleep(3)
+        await a_sleep(3, title = 'page.goto walmart')
+        
+        await randomClicks(page)
+        await a_sleep(2)
+        
+        try:
+            await page.goto("https://walmart.com/",
+                            timeout=random.randint(8000, 12000),
+                            referer=page.url)
+        except PlaywrightTimeoutError:
+            print("Slow website 2")
+            print("Ignoring wait 2")
 
         is_captcha = False
         try:
-            await page.get_by_text("Sign InAccount").click()
+            await a_sleep(3, page_locator = page.get_by_text, title = 'Sign InAccount', locator_action = 'click')
         except PlaywrightTimeoutError:
             is_captcha = True
         
@@ -494,14 +627,12 @@ async def run(config):
         
         await a_sleep(3)
         try:
-            await page.get_by_text("or create account").click(timeout=3000)
+            await a_sleep(4, page.get_by_text, "or create account", 'click(timeout=3000)')
         except PlaywrightTimeoutError:
             print("Now 2nd sign in button, ignoring")
 
-        await a_sleep(4)
-
         try:
-            email_input_by_name = page.locator('[name="Email Address"]')
+            email_input_by_name = await a_sleep(1, page.locator, '[name="Email Address"]')
             await email_input_by_name.click(timeout=15000)
         except PlaywrightTimeoutError:
             is_captcha = True
@@ -510,21 +641,20 @@ async def run(config):
             print("!captcha")
             return None
         
-        await email_input_by_name.press_sequentially(config["email"], delay=random.randint(200, 250))
+        await email_input_by_name.press_sequentially(config["email"], delay=random.randint(320, 460))
         await email_input_by_name.fill(config["email"])
         await a_sleep(2) #await asyncio.sleep(2)
             
 
-        await page.get_by_text("Continue").click()
-        await a_sleep(3) #await asyncio.sleep(5)
+        await a_sleep(3, page.get_by_text, "Continue", locator_action='click()')
 
         try:
             first_name_input_by_name = page.locator('[name="firstName"]')
-            await first_name_input_by_name.press_sequentially(config["first_name"], delay=random.randint(140, 180))
+            await first_name_input_by_name.press_sequentially(config["first_name"], delay=random.randint(320, 460))
             await a_sleep(0.5) #await asyncio.sleep(0.5)
 
             last_name_input_by_name = page.locator('[name="lastName"]')
-            await last_name_input_by_name.press_sequentially(config["last_name"], delay=random.randint(140, 180))
+            await last_name_input_by_name.press_sequentially(config["last_name"], delay=random.randint(320, 460))
             await a_sleep(0.5) #await asyncio.sleep(0.5)
 
             phone = None
@@ -546,7 +676,7 @@ async def run(config):
         except:
             new_password_input_by_name = page.locator('[name="password"]')
             
-        await new_password_input_by_name.press_sequentially(config["password"], delay=random.randint(140, 180))
+        await new_password_input_by_name.press_sequentially(config["password"], delay=random.randint(460, 580))
 
         await a_sleep(1)
 
@@ -844,7 +974,7 @@ def restore_txt (file_path, remaining_lines):
 async def main():
     while True:
         success = None
-        imaginated = None #None to disable, False to enbale imagination of accounts (for tests)
+        imaginated = False #None to disable, False to enbale imagination of accounts (for tests)
         try:
             account = None
             proxy = None

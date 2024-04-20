@@ -1,3 +1,23 @@
+'''
+$cd /c/Program Files/Google/Chrome/Application/
+$mv 109.0.5414.120 123.0.6312.132
+$cp -a 123.0.6312.132/109.0.5414.120.manifest 123.0.6312.132/123.0.6312.132.manifest
+$sed -bi 's/109\.0\.5414\.120/123\.0\.6312\.132/g' "123.0.6312.132/123.0.6312.132.manifest"
+$grep -ERn '123\.0\.6312\.132' /c/Program\ Files/Google/Chrome/Application/ | grep chrom
+$sed -bi 's/109\.0\.5414\.120/123\.0\.6312\.132/g' "/c/Program Files/Google/Chrome/Application/chrome.exe"
+$sed -bi 's/109\.0\.5414\.120/123\.0\.6312\.132/g' "/c/Program Files/Google/Chrome/Application/123.0.6312.132/chrome.dll"
+$sed -bi 's/109\.0\.5414\.120/123\.0\.6312\.132/g' "/c/Program Files/Google/Chrome/Application/123.0.6312.132/chrome_elf.dll"
+>C:\Users\User\Downloads\rc_edit_64.exe "chrome.exe" --set-version-string "ProductVersion" 123.0.6312.132
+>C:\Users\User\Downloads\rc_edit_64.exe "chrome.exe" --set-file-version 123.0.6312.132
+>C:\Users\User\Downloads\rc_edit_64.exe "chrome.exe" --set-product-version 123.0.6312.132
+>C:\Users\User\Downloads\rc_edit_64.exe "123.0.6312.132\chrome.dll" --set-product-version 123.0.6312.132
+>C:\Users\User\Downloads\rc_edit_64.exe "123.0.6312.132\chrome.dll" --set-file-version 123.0.6312.132
+>C:\Users\User\Downloads\rc_edit_64.exe "123.0.6312.132\chrome_elf.dll" --set-file-version 123.0.6312.132
+>C:\Users\User\Downloads\rc_edit_64.exe "123.0.6312.132\chrome_elf.dll" --set-product-version 123.0.6312.132
+
+>wmic datafile where name="C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe" get Version /value
+'''
+
 import traceback
 from threading import Thread 
 
@@ -364,16 +384,12 @@ def generate_fake_address(proxy = None): # {'address1': '37600 Sycamore Street',
     while (len(res.keys()) < 4 or not('address1' in res) or not('city' in res) or not('address1' in res) or not('postalCode' in res)):
         r = random.randint(0, 4)
         if (r == 0):
-            print('way 0: by_state')
             res = random_address.real_random_address_by_state(str(fake.state_abbr()))
         elif (r == 1):
-            print('way 1: by_postal_code')
             res = random_address.real_random_address_by_postal_code(str(fake.zipcode()))
         elif (r == 2):
-            print('way 2: by randint code')
             res = random_address.real_random_address_by_postal_code(str(random.randint(55001, 99950)))
         elif (r == 3):
-            print('way 3: by ip api json')
             try:
                 ###data = async_to_sync(tmp_loader_json('http://ip-api.com/json', proxy))
                 with urllib.request.urlopen('http://ip-api.com/json') as data:
@@ -395,7 +411,6 @@ def generate_fake_address(proxy = None): # {'address1': '37600 Sycamore Street',
                 print(traceback.format_exc())
                 pass
         else:
-            print('way 4: by geo json')
             try:
                 with urllib.request.urlopen('https://api.ipify.org/?format=json') as data0:
                 ##with requests.get('https://api.ipify.org/?format=json') as data0:
@@ -430,7 +445,17 @@ def generate_fake_address(proxy = None): # {'address1': '37600 Sycamore Street',
             except:
                 print(traceback.format_exc())
                 pass            
-        
+    
+    if (r == 0):
+        print(str(r) + ' way: by_state')
+    elif (r == 1):
+        print(str(r) + ' way: by_postal_code')
+    elif (r == 2):
+        print(str(r) + ' way: by randint code')
+    elif (r == 3):
+        print(str(r) + ' way: by ip api json')
+    else:
+        print(str(r) + ' way: by geo json')
             
     res['street'] = res['address1'] if ('address1' in res) else fake.street_address()
     res['city'] = res['city'] if ('city' in res) else fake.city()
