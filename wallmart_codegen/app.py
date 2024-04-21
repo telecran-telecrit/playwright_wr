@@ -377,9 +377,14 @@ def generate_fake_address(proxy = None): # {'address1': '37600 Sycamore Street',
             os.environ['http_proxy'] = 'http://' + proxy['proxy_server']
             os.environ['https_proxy'] = 'http://' + proxy['proxy_server']
     res = {}
+    failed = set()
     r = -1
     while (len(res.keys()) < 4 or not('address1' in res) or not('city' in res) or not('address1' in res) or not('postalCode' in res)):
         r = random.randint(0, 4)
+        if (len(failed) >= 5):
+            break
+        if (r in failed):
+            continue
         if (r == 0):
             res = random_address.real_random_address_by_state(str(fake.state_abbr()))
         elif (r == 1):
@@ -408,6 +413,7 @@ def generate_fake_address(proxy = None): # {'address1': '37600 Sycamore Street',
                 pass
         else:
             pass
+        failed.add(r)
     
     if (r == 0):
         print(str(r) + ' way: by_state')
@@ -603,6 +609,12 @@ async def locator_press_sequentially2 (locator, data, nearDealy=100, humanErrors
 
 async def run (config):
     global _SAVE_COOKIES
+    global _BLOCK_IMAGES
+
+    if (_BLOCK_IMAGES):
+        _BLOCK_IMAGES_old = True
+    else:
+        _BLOCK_IMAGES_old = False
     
     #async with async_playwright() as playwright:
         #browser = await playwright.chromium.launch(
@@ -850,6 +862,8 @@ async def run (config):
             
         await a_sleep(4)
             
+        _BLOCK_IMAGES = False
+            
         try:
             await page.goto("https://www.walmart.com/plus/offer-list", 
                             timeout=random.randint(15000, 25000),
@@ -879,6 +893,13 @@ async def run (config):
           
         await a_sleep(7)
         
+        try:
+            contentshort = await page.content()
+            with open("contentshort.htm", 'w+', encoding='utf-8') as file:
+                file.write(contentshort)
+        except:
+            pass
+        
         greenCode = await (await a_sleep(2, page.locator, 'div span.green')).first.text_content()
         if (not(greenCode)):
             return None
@@ -906,6 +927,7 @@ async def run (config):
         await context.close() #await browser.close()
         return (0, greenCode, str("+1") + phone["phonenumber"] if (not(phone["phonenumber"][0] == '+') and not(phone["phonenumber"][0] == '1')) else phone["phonenumber"], config["email"], config["password"], config["first_name"] + ' ' + config["last_name"], config["city"], config["state"])
     finally:
+        _BLOCK_IMAGES = _BLOCK_IMAGES_old
         try:
             if (context is not None):
                 await context.close()
