@@ -26,7 +26,7 @@ import shutil
 import json
 import pickle
 
-from src.sms import purchase_number, receive_sms
+from src.sms2 import purchase_number, receive_sms
 
 # Lee,Elizabeth,leeelizabeth769@yahoo.com,gyzptdwexrtqikrq
 
@@ -34,11 +34,28 @@ UA = [
 #    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.3",
 #    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.3.1 Safari/605.1.1",
 #    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:124.0) Gecko/20100101 Firefox/124.",
-#    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/103.0.0.0 Safari/537.3"
+#    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/103.0.0.0 Safari/537.3",
+
+#"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Safari/605.1.1",
+#"Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:124.0) Gecko/20100101 Firefox/124.",
+#"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36 Edg/123.0.0.",
+#"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.0.0 Safari/537.3",
+#"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/117.0.0.0 Safari/537.36 Edg/117.0.2045.4",
+#"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36 Edg/122.0.0.",
+#"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.3",
+#"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.3",
+#"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36 Avast/122.0.0.",
+#"Mozilla/5.0 (Windows NT 6.1; Win64; x64; rv:109.0) Gecko/20100101 Firefox/115.",
+#"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) SamsungBrowser/24.0 Chrome/117.0.0.0 Safari/537.3",
+#"Mozilla/5.0 (Windows NT 6.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/69.0.3497.100 Safari/537.3",
+#"Mozilla/5.0 (Windows NT 6.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.0.0 Safari/537.36 OPR/95.0.0.",
+#"Mozilla/5.0 (Windows NT 6.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.0.0 Safari/537.36 Edg/109.0.1518.10",
+#"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36 OPR/108.0.0.",
+#"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/83.0.4103.106 Safari/537.3",
 ]
 
 VP = [
-    {"width": 1920, "height": 1080}, # Full HD
+#    {"width": 1920, "height": 1080}, # Full HD
     {"width": 1366, "height": 768},
     {"width": 1280, "height": 1024},
     {"width": 1024, "height": 768},
@@ -47,7 +64,7 @@ VP = [
     {"width": 1440, "height": 900},
     {"width": 1600, "height": 900},
     {"width": 1680, "height": 1050},
-    {"width": 2560, "height": 1440}, # QHD
+#    {"width": 2560, "height": 1440}, # QHD
 #    {"width": 3840, "height": 2160}, # 4K UHD
 ]
 
@@ -59,7 +76,7 @@ downloadPath = os.path.abspath('./downloaded_files/')
 _LOAD_COOKIES = False
 _SAVE_COOKIES = True
 _HEADLESS = False
-_STEALTH = True
+_STEALTH = True ##
 _EXTERNAL_PDF = True
 _BLOCK_IMAGES = True ##
 _PROXY = None
@@ -647,7 +664,7 @@ async def run (config):
         await bringToFront(page)
         
         try:
-            await page.goto("https://walmart.com/",
+            await page.goto("https://www.walmart.com/",
                             timeout=random.randint(8000, 12000),
                             referer=page.url)
         except PlaywrightTimeoutError:
@@ -814,53 +831,58 @@ async def run (config):
 
             # Continue
             try:
-                await (await a_sleep(5, frame.locator, "button[data-test-id='continueBtn']")).click()
+                await (await a_sleep(5, frame.locator, "button[data-test-id='continueBtn']")).click(timeout=random.randint(9000, 11000))
             except Exception as e:
                 print(e)
             
             try:
-                await (await a_sleep(5, page.locator, "button[data-test-id='continueBtn']")).click()
+                await a_sleep(5, page.locator, "button[data-test-id='continueBtn']", 'click(timeout='+str(random.randint(4000, 5000))+')')
+            except Exception as e:
+                print(e)
+                
+            try:
+                await a_sleep(5, page.locator, "button[data-test-id='continueBtn']", 'click(timeout='+str(random.randint(3000, 4000))+')')
             except Exception as e:
                 print(e)
 
-            await (await a_sleep(2, page.locator, 'button[aria-label="Claim your free 30-day trial"]')).click()
+            await (await a_sleep(2, page.locator, 'button[aria-label="Claim your free 30-day trial"]')).click(timeout=random.randint(2000, 3000))
         except Exception as e:
             
             try:
-                await (await a_sleep(5, frame.locator, "button[data-test-id='continueBtn']")).click()
+                await a_sleep(5, frame.locator, "button[data-test-id='continueBtn']", 'click(timeout='+str(random.randint(3000, 4000))+')')
             except Exception as e:
                 print('... failed')
                 pass
             
             try:
-                await a_sleep(2, page.locator, 'button[aria-label="Close dialog"]', 'click')
+                await a_sleep(2, page.locator, 'button[aria-label="Close dialog"]', 'click(timeout=1500)')
             except Exception as e:
                 print('... failed')
                 pass
             
             try:
                 #await page.locator('button').filter(has_text = "Leave").first.click()
-                await (await a_sleep(1.5, page.locator, 'button:has-text("Leave")')).first.click()
+                await (await a_sleep(1.5, page.locator, 'button:has-text("Leave")')).first.click(timeout=2000)
             except Exception as e:
                 print('... failed')
                 pass
             
             try:
-                await (await a_sleep(2, page.get_by_text, "Continue & add payment method")).click()
+                await (await a_sleep(2, page.get_by_text, "Continue & add payment method")).click(timeout=random.randint(2000, 3000))
             except Exception as e:
                 print('... failed')
                 pass
             
             try:
-                await (await a_sleep(5, page.locator, "button[data-test-id='continueBtn']")).click()
+                await (await a_sleep(5, page.locator, "button[data-test-id='continueBtn']")).click(timeout=random.randint(1000, 2000))
             except Exception as e:
                 print('... failed')
                 pass
 
-            await (await a_sleep(0, page.locator, 'button[aria-label="Claim your free 30-day trial"]')).click()
+            await (await a_sleep(0, page.locator, 'button[aria-label="Claim your free 30-day trial"]')).click(timeout=random.randint(2000, 3000))
             
             
-        await a_sleep(4)
+        await a_sleep(1)
             
         _BLOCK_IMAGES = False
             
