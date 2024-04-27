@@ -13,6 +13,7 @@ sys.path.append(os.path.abspath('./')) # for import helpers
 sys.path.append(os.path.abspath('./playwright_stealth/')) # for import helpers
 sys.path.append(os.path.abspath('./random-address/')) # for import helpers
 sys.path.append(os.path.abspath('./geopy/'))
+from datetime import datetime
 from faker import Faker
 import random_address
 from geopy.geocoders import Nominatim
@@ -468,7 +469,7 @@ def generate_name(username=None, userpass=None):
         'first_name': fake.first_name_male() if (random.randint(0, 1) == 0) else fake.first_name_female(),
         'last_name': fake.last_name(), # TODO: last_name from email username (if exists)
     }
-    res['password'] = res['last_name'][0:1].lower() + res['first_name'][0:1].upper() + res['first_name'][1:-1] + fake.password() if (not userpass) else userpass + res['last_name'][0:1].lower() + res['first_name'][0:1].upper() + fake.password()
+    res['password'] = res['last_name'][0:1].lower() + res['first_name'][0:1].upper() + res['first_name'][1:-1] + fake.password() if (not userpass) else userpass + res['last_name'][0:1].lower() + res['first_name'][0:1].upper() + generate_random_string(random.randint(4, 6)) + ('^' if random.randint(0, 1) == 0 else '$') + (generate_random_string(random.randint(1, 2)).lower()) + (generate_random_string(random.randint(1, 2)).upper()) + generate_random_string(random.randint(4, 7))
     return res
 
 def _is_safe (argvalue):
@@ -558,6 +559,10 @@ async def a_sleep (timeout=0, page_locator=None, title='', locator_action='', me
 #    loop.run_until_complete(a_sleep(timeout, title, method))
 #    loop.close()
 
+def generate_random_string(length):
+    letters = [chr(random.randint(97, 122)) for _ in range(length)]
+    return ''.join(letters)
+
 async def randomButtonClick (page):
     target = None
     j = 0
@@ -567,13 +572,16 @@ async def randomButtonClick (page):
         m = ''
         if (t == 0):
             m = 'button'
+            b = page.locator(m)
         elif (t == 1):
             m = 'input[type="button"]'
+            b = page.locator(m)
         elif (t == 2):
             m = 'input'
+            b = page.locator(m)
         else:
             m = 'a'
-        b = page.locator(m)
+            b = page.locator(m+'[href*="' + '://' + (page.url.split('://')[1].split('/')[0]) + '"]')
         count = await b.count()
         if (count > 1):
             i = random.randint(0, count - 1)
@@ -664,15 +672,17 @@ async def run (config):
         await bringToFront(page)
         
         try:
-            await page.goto("https://www.walmart.com/",
-                            timeout=random.randint(8000, 12000),
-                            referer=page.url)
+            if ((page.url.split('://')[1].split('/')[0]) != 'www.walmart.com'):
+                await page.goto("https://www.walmart.com/",
+                                timeout=random.randint(8000, 12000),
+                                referer=page.url)
         except PlaywrightTimeoutError:
             print("Slow website 2")
             print("Ignoring wait 2")
 
         is_captcha = False
         try:
+            await a_sleep(1)
             await a_sleep(3, page_locator = page.get_by_text, title = 'Sign InAccount', locator_action = 'click')
         except PlaywrightTimeoutError:
             is_captcha = True
@@ -732,12 +742,20 @@ async def run (config):
             print(traceback.format_exc())
             new_password_input_by_name = page.locator('[name="password"]')
             
-        await locator_press_sequentially2(new_password_input_by_name, config["password"], random.randint(200, 250))
-
+        password_new_tmp = generate_random_string(random.randint(3, 5)) + str('123') + generate_random_string(random.randint(1, 2))
+        await locator_press_sequentially2(new_password_input_by_name, password_new_tmp, random.randint(100, 250))
         await a_sleep(1)
-
         await page.get_by_text("Continue").last.click()
-        await a_sleep(5)
+        await a_sleep(2)
+        
+        try:
+            await locator_press_sequentially2(new_password_input_by_name, config["password"], random.randint(300, 450))
+            await a_sleep(1)
+            await page.get_by_text("Continue").last.click()
+            await a_sleep(3)
+        except:
+            config["password"] = password_new_tmp
+            pass
 
         code = "0"
         while code == "0":
@@ -758,13 +776,21 @@ async def run (config):
         await a_sleep(15)
 
         try:
-            await a_sleep(1, page.get_by_text, "I agree to the terms (required)", 'click(timeout=60000)')
+            await a_sleep(1, page.get_by_text, "I agree to the terms (required)", 'click(timeout=9000)')
         except PlaywrightTimeoutError:
-            print("Subscription page not visible. Reloading")
-            await page.reload()
+            print("Subscription page not visible. Navigating")
+            await page.goto("https://www.walmart.com/",
+                                timeout=random.randint(15000, 18000),
+                                referer=page.url)
+            await a_sleep(3)
+            try:
+                await a_sleep(1, page.get_by_text, "I agree to the terms (required)", 'click(timeout=9000)')
+            except PlaywrightTimeoutError:
+                print("Subscription page not visible. Reloading")
+                await page.reload()
             await a_sleep(1, page.get_by_text, "I agree to the terms (required)", 'click(timeout=60000)')
 
-        await a_sleep(10, page.get_by_text, "Continue & add payment method", 'click(timeout=60000)')
+        await a_sleep(10, page.get_by_text, "Continue & add payment method", 'click(timeout=30000)')
 
         print("adding payment method")
         #return ###
@@ -879,7 +905,7 @@ async def run (config):
                 print('... failed')
                 pass
 
-            await (await a_sleep(0, page.locator, 'button[aria-label="Claim your free 30-day trial"]')).click(timeout=random.randint(2000, 3000))
+            await (await a_sleep(0, page.locator, 'button[aria-label="Claim your free 30-day trial"]')).click(timeout=random.randint(5000, 7000))
             
             
         await a_sleep(1)
@@ -1061,7 +1087,8 @@ async def main():
                     print('WARN: Account is empty!')
                     account = None
                     name = generate_name()
-                    account = [(name['first_name']+name['last_name']+str(random.randint(1950, 2002))+'@yahoo.com').lower(), name['password']]
+                    today_year = datetime.today().year
+                    account = [(name['first_name']+(name['last_name'][0:-2])+generate_random_string(random.randint(2, 3))+str(random.randint(1956, today_year - 21))+('@yahoo.com' if (random.randint(0, 1) == 0) else '@yahoo.com')).lower(), name['password']]
                     imaginated = True
                     print(account)
                     print(name)

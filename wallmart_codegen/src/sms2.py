@@ -72,16 +72,16 @@ async def receive_sms (order_id):
                     res = dict()
                     res['statusMode'] = statusMode
                     res['order_id'] = str(order_id)
-                    res['order_code'] = ''
+                    res['code'] = ''
                     if (statusMode == 'NO_ACTIVATION'):
                         return res
                     elif (statusMode == 'STATUS_WAIT_CODE'):
                         logger.info('Please, be patient')
                         return res
-                    elif (len(resultData) >= 2 and response.status == 200):
+                    elif (len(resultData) >= 2 and (response.status == 200 or statusMode == 'STATUS_OK')):
                         number = resultData[1]
-                        res['order_code'] = number
-                        if (number is not None and number.strip().length > 0):
+                        res['code'] = number
+                        if (number is not None and len(number.strip()) > 0):
                             logger.info(f"Found {order_id} - {number}")
                             return res
                     else:
@@ -94,7 +94,7 @@ async def receive_sms (order_id):
         res = dict()
         res['statusMode'] = 'FAILED'
         res['order_id'] = str(order_id)
-        res['order_code'] = ''
+        res['code'] = ''
         return res
 
 def async_to_sync (awaitable):
