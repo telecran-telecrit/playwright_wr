@@ -1,22 +1,26 @@
-'''
-$cd /c/Program Files/Google/Chrome/Application/
-$mv 109.0.5414.120 123.0.6312.132
-$cp -a 123.0.6312.132/109.0.5414.120.manifest 123.0.6312.132/123.0.6312.132.manifest
-$sed -bi 's/109\.0\.5414\.120/123\.0\.6312\.132/g' "123.0.6312.132/123.0.6312.132.manifest"
-$grep -ERn '123\.0\.6312\.132' /c/Program\ Files/Google/Chrome/Application/ | grep chrom
-$sed -bi 's/109\.0\.5414\.120/123\.0\.6312\.132/g' "/c/Program Files/Google/Chrome/Application/chrome.exe"
-$sed -bi 's/109\.0\.5414\.120/123\.0\.6312\.132/g' "/c/Program Files/Google/Chrome/Application/123.0.6312.132/chrome.dll"
-$sed -bi 's/109\.0\.5414\.120/123\.0\.6312\.132/g' "/c/Program Files/Google/Chrome/Application/123.0.6312.132/chrome_elf.dll"
->C:\Users\User\Downloads\rc_edit_64.exe "chrome.exe" --set-version-string "ProductVersion" 123.0.6312.132
->C:\Users\User\Downloads\rc_edit_64.exe "chrome.exe" --set-file-version 123.0.6312.132
->C:\Users\User\Downloads\rc_edit_64.exe "chrome.exe" --set-product-version 123.0.6312.132
->C:\Users\User\Downloads\rc_edit_64.exe "123.0.6312.132\chrome.dll" --set-product-version 123.0.6312.132
->C:\Users\User\Downloads\rc_edit_64.exe "123.0.6312.132\chrome.dll" --set-file-version 123.0.6312.132
->C:\Users\User\Downloads\rc_edit_64.exe "123.0.6312.132\chrome_elf.dll" --set-file-version 123.0.6312.132
->C:\Users\User\Downloads\rc_edit_64.exe "123.0.6312.132\chrome_elf.dll" --set-product-version 123.0.6312.132
+def none():
+    r'''
+    $cd '/c/Program Files/Google/Chrome/Application/'
+    $mv 109.0.5414.120 123.0.6312.132
+    $cp -a 123.0.6312.132/109.0.5414.120.manifest 123.0.6312.132/123.0.6312.132.manifest
+    $sed -bi 's/109\.0\.5414\.120/123\.0\.6312\.132/g' "123.0.6312.132/123.0.6312.132.manifest"
+    $grep -ERn '123\.0\.6312\.132' /c/Program\ Files/Google/Chrome/Application/ | grep chrom
+    $sed -bi 's/109\.0\.5414\.120/123\.0\.6312\.132/g' "/c/Program Files/Google/Chrome/Application/chrome.exe"
+    $sed -bi 's/109\.0\.5414\.120/123\.0\.6312\.132/g' "/c/Program Files/Google/Chrome/Application/123.0.6312.132/chrome.dll"
+    $sed -bi 's/109\.0\.5414\.120/123\.0\.6312\.132/g' "/c/Program Files/Google/Chrome/Application/123.0.6312.132/chrome_elf.dll"
+    >C:\Users\User\Downloads\rc_edit_64.exe "chrome.exe" --set-version-string "ProductVersion" 123.0.6312.132
+    >C:\Users\User\Downloads\rc_edit_64.exe "chrome.exe" --set-file-version 123.0.6312.132
+    >C:\Users\User\Downloads\rc_edit_64.exe "chrome.exe" --set-product-version 123.0.6312.132
+    >C:\Users\User\Downloads\rc_edit_64.exe "123.0.6312.132\chrome.dll" --set-product-version 123.0.6312.132
+    >C:\Users\User\Downloads\rc_edit_64.exe "123.0.6312.132\chrome.dll" --set-file-version 123.0.6312.132
+    >C:\Users\User\Downloads\rc_edit_64.exe "123.0.6312.132\chrome_elf.dll" --set-file-version 123.0.6312.132
+    >C:\Users\User\Downloads\rc_edit_64.exe "123.0.6312.132\chrome_elf.dll" --set-product-version 123.0.6312.132
 
->wmic datafile where name="C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe" get Version /value
-'''
+    >wmic datafile where name="C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe" get Version /value
+    
+    #mkdir -p ~/.cache/ms-playwright/chromium-1112/; ln -s /opt/ungoogled-chromium_110.0.5481.177-1.1_linux/  ~/.cache/ms-playwright/chromium-1112/chrome-linux
+    '''
+    pass
 
 import traceback
 from threading import Thread 
@@ -59,23 +63,29 @@ UA = [
 ]
 
 VP = [
-    {"width": 1920, "height": 1080},
+#    {"width": 1920, "height": 1080}, # Full HD
+    {"width": 1366, "height": 768},
     {"width": 1280, "height": 1024},
+    {"width": 1024, "height": 768},
     {"width": 1280, "height": 800},
     {"width": 1560, "height": 900},
+    {"width": 1440, "height": 900},
+    {"width": 1600, "height": 900},
+    {"width": 1680, "height": 1050},
+#    {"width": 2560, "height": 1440}, # QHD
+#    {"width": 3840, "height": 2160}, # 4K UHD
 ]
-
 
 
 cookieDir = os.path.expanduser('~')+'/.tmp/playwright/' # browser profile with cookies
 cookieSimpleFile = os.path.dirname(os.path.abspath(cookieDir)) + '/' + '.cookies_pl.pkl' # exported cookies
 downloadPath = os.path.abspath('./downloaded_files/')
 _LOAD_COOKIES = False
-_SAVE_COOKIES = True
+_SAVE_COOKIES = False
 _HEADLESS = False
-_STEALTH = True
+_STEALTH = False ##
 _EXTERNAL_PDF = True
-_BLOCK_IMAGES = True
+_BLOCK_IMAGES = False
 _PROXY = None
 
 async def createUndetectedWebcontext (suf="https://bing.com", headless=_HEADLESS, proxy=None, extension0='./Extensions/Extension0'):
@@ -381,8 +391,14 @@ def generate_fake_address(proxy = None): # {'address1': '37600 Sycamore Street',
             os.environ['http_proxy'] = 'http://' + proxy['proxy_server']
             os.environ['https_proxy'] = 'http://' + proxy['proxy_server']
     res = {}
+    failed = set()
+    r = -1
     while (len(res.keys()) < 4 or not('address1' in res) or not('city' in res) or not('address1' in res) or not('postalCode' in res)):
         r = random.randint(0, 4)
+        if (len(failed) >= 5):
+            break
+        if (r in failed):
+            continue
         if (r == 0):
             res = random_address.real_random_address_by_state(str(fake.state_abbr()))
         elif (r == 1):
@@ -406,45 +422,12 @@ def generate_fake_address(proxy = None): # {'address1': '37600 Sycamore Street',
                         pass
                         #res['address1'] = (data['timezone'].split('/')[1] if ('/' in data['timezone']) else data['timezone'].split('/')[0]) + ' street'
                     res['postalCode'] = data['zip']
-                    print('res', res)
             except:
                 print(traceback.format_exc())
                 pass
         else:
-            try:
-                with urllib.request.urlopen('https://api.ipify.org/?format=json') as data0:
-                ##with requests.get('https://api.ipify.org/?format=json') as data0:
-                    ip = json.load(data0)['ip']
-                    ##ip = json.loads(data0.text)['ip']
-                    print(ip)
-                    with urllib.request.urlopen('https://get.geojs.io/v1/ip/geo/' + str(ip) + '.json') as data:
-                        data = json.load(data)
-                        res['state'] = data['region'] if ('region' in data) else data['country_code']
-                        res['address1'] = (data['timezone'].split('/')[1] if ('/' in data['timezone']) else data['timezone'].split('/')[0]) + ' street'
-                        data = geocoder.reverse('' + str(data['latitude']) + ', ' + str(data['longitude']), language = 'en-us,en')
-                        address = str(data)
-                        data = data.raw['address']
-                        if ('postcode' in data):
-                            res['postalCode'] = data['postcode']
-                        else:
-                            data['postcode'] = ','
-                        res['country'] = data['country']
-                        res['city'] = data['city'] if ('city' in data) else data['county']
-                        res['state'] = data['state'] if ('state' in data) else data['region']
-                        if (res['country'] != '' and res['country'] == address.split(',')[-1].strip()):
-                            address = address.split(data['postcode'])[0].strip()
-                            address = address.split(',')[::-1]
-                            address = list(filter(lambda e: not(not(e)), map(lambda e: e.strip(), address)))
-                            res['address2'] = address[-1]
-                            if (address[0] == res['state'] or (len(address) >= 2 and address[1] == res['city'])):
-                                address = ', '.join(address[2:-1])
-                            else:
-                                address = ', '.join(address)
-                            res['address1'] = address
-                        print(res)
-            except:
-                print(traceback.format_exc())
-                pass            
+            pass
+        failed.add(r)
     
     if (r == 0):
         print(str(r) + ' way: by_state')
@@ -527,13 +510,13 @@ async def run(config):
     (context, page, background_page, playwright) = await createUndetectedWebcontext("https://walmart.com/", proxy = config) 
     try:    
         try:
-            await page.goto("https://theylied.net.by/test.html", # "https://internet.yandex.ru", 
+            await page.goto("https://abrahamjuliot.github.io/creepjs/", #"https://theylied.net.by/test.html", # "https://internet.yandex.ru", 
                             timeout=random.randint(25000, 45000),  # https://www.walmart.com/account/login?vid=oaoh
                             referer="https://www.google.com/search?q=walmart&sourceid=chrome&ie=UTF-8")
         except PlaywrightTimeoutError:
             print("Slow website")
             print("Ignoring wait")
-        await a_sleep(3)
+        await a_sleep(30)
 
         
             
