@@ -13,7 +13,7 @@ logger.add("daisysms_logs.log", rotation="10 MB")
 API_KEY = "jShVuORHOaqtPPsrY5IdODZCBn3nko"
 BASE_URL = "https://daisysms.com"
 SERVICE_SHORT = "wr" # Walmart
-MAX_PRICE = 0.50
+MAX_PRICE = 0.25
 
 #https://daisysms.com/docs/api
 
@@ -72,7 +72,7 @@ async def receive_sms (order_id):
                     res = dict()
                     res['statusMode'] = statusMode
                     res['order_id'] = str(order_id)
-                    res['code'] = ''
+                    res['code'] = '0'
                     if (statusMode == 'NO_ACTIVATION'):
                         return res
                     elif (statusMode == 'STATUS_WAIT_CODE'):
@@ -94,7 +94,7 @@ async def receive_sms (order_id):
         res = dict()
         res['statusMode'] = 'FAILED'
         res['order_id'] = str(order_id)
-        res['code'] = ''
+        res['code'] = '0'
         return res
 
 def async_to_sync (awaitable):

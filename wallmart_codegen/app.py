@@ -15,6 +15,7 @@ sys.path.append(os.path.abspath('./random-address/')) # for import helpers
 sys.path.append(os.path.abspath('./geopy/'))
 from datetime import datetime
 from faker import Faker
+from faker.providers import BaseProvider
 import random_address
 from geopy.geocoders import Nominatim
 geocoder = Nominatim(user_agent="open_python")
@@ -381,7 +382,19 @@ def async_to_sync (awaitable):
     return t.res
 
 
+class MyPersonProvider(BaseProvider):
+    first_name_females = ["food", "fruit"]
+    def first_name_female(self):
+        return random.choice(list(filter(lambda line: (line is not None and len(line.strip()) >= 2), list(open('femalefirstnames.txt'))))).strip()
+        #return self.random_element(self.first_name_females)
+    def first_name_male(self):
+        return random.choice(list(filter(lambda line: (line is not None and len(line.strip()) >= 2), list(open('malefirstnames.txt'))))).strip()
+    def last_name(self):
+        return random.choice(list(filter(lambda line: (line is not None and len(line.strip()) >= 2), list(open('lastnames.txt'))))).strip()
+
 fake = Faker()
+#fake.add_provider(MyPersonProvider) ###
+
 def generate_fake_address(proxy = None): # {'address1': '37600 Sycamore Street', 'address2': '', 'city': 'Newark', 'state': 'CA', 'postalCode': '94560', 'coordinates': {'lat': 37.5261943, 'lng': -122.0304698}}
     if (proxy is not None):
         if ('proxy_username' in proxy and 'proxy_password' in proxy):
@@ -529,6 +542,10 @@ async def a_sleep (timeout=0, page_locator=None, title='', locator_action='', me
     except:
         pass
     if (page_locator is not None and r is not None):
+        try:
+            await r.scroll_into_view_if_needed(timeout=3000)
+        except Exception as locscrollError:
+            print(locscrollError)
         m = r
         if (locator_action is not None and locator_action.strip() != ''):
             locator_action_args = {}
@@ -539,15 +556,13 @@ async def a_sleep (timeout=0, page_locator=None, title='', locator_action='', me
                 locator_action_args = {}
             m = getattr(r, locator_action)
             print(locator_action_args)
+            isAsync = asyncio.iscoroutinefunction(m)
             if (isinstance(locator_action_args, list)):
                 m = m(*locator_action_args)
             else:
                 m = m(**locator_action_args)
-            try:
+            if (isAsync):
                 m = await m
-            except:
-                pass
-    
     try:
         await method(t)
     except:
@@ -617,7 +632,11 @@ async def randomClicks (page):
 async def locator_press_sequentially2 (locator, data, nearDealy=100, humanErrors=True):
     print('locator_press_sequentially2: ', str(locator), str(data))
     i = 0
-    for h in data:
+    try:
+        await locator.clear()
+    except:
+        pass
+    for h in data:        
         if (humanErrors and random.randint(0, 10) == 0):
             try:
                 await locator.press_sequentially(data[i + 1], delay=random.randint(nearDealy, nearDealy+200))
@@ -758,11 +777,11 @@ async def run (config):
             pass
 
         code = "0"
-        while code == "0":
+        leftTries = 50
+        while (code is None or code == "" or code == "0"):
+            if ((leftTries := leftTries - 1) < 0):  break
             code = (await receive_sms(phone["order_id"]))["code"]
             await a_sleep(3)
-            # if code != "0":
-            #     logger.success()
 
         for i, digit in enumerate(code):
             selector = f"#input-verificationCode"
@@ -776,7 +795,7 @@ async def run (config):
         await a_sleep(15)
 
         try:
-            await a_sleep(1, page.get_by_text, "I agree to the terms (required)", 'click(timeout=9000)')
+            await a_sleep(1, page.get_by_text, "I agree to", 'click(timeout=9000)')
         except PlaywrightTimeoutError:
             print("Subscription page not visible. Navigating")
             await page.goto("https://www.walmart.com/",
@@ -784,11 +803,11 @@ async def run (config):
                                 referer=page.url)
             await a_sleep(3)
             try:
-                await a_sleep(1, page.get_by_text, "I agree to the terms (required)", 'click(timeout=9000)')
+                await a_sleep(1, page.get_by_text, "I agree to", 'click(timeout=9000)')
             except PlaywrightTimeoutError:
                 print("Subscription page not visible. Reloading")
                 await page.reload()
-            await a_sleep(1, page.get_by_text, "I agree to the terms (required)", 'click(timeout=60000)')
+                await a_sleep(1, page.get_by_text, "I agree to", 'click(timeout=60000)')
 
         await a_sleep(10, page.get_by_text, "Continue & add payment method", 'click(timeout=30000)')
 
@@ -838,20 +857,35 @@ async def run (config):
             await a_sleep(3)
 
             # Street address
-            await locator_press_sequentially2(frame.locator('input[name="newBillingAddress.addressLineOne"]'), config["street"], random.randint(140, 180))
-            await a_sleep(2)
-
-            # City)
-            await locator_press_sequentially2(frame.locator('input[autocomplete="address-level2"]'), config["city"], random.randint(140, 180))
+            locatorStreeAddress = frame.locator('input[name="newBillingAddress.addressLineOne"]')
+            await locator_press_sequentially2(locatorStreeAddress, config["street"], random.randint(140, 180))
             await a_sleep(1)
+            try:
+                await locatorStreeAddress.press('ArrowDown')
+                await a_sleep(0.5)
+                await locatorStreeAddress.press('Enter')
+                await a_sleep(0.5)
+            except Exception as locatorStreeAddressError:
+                print(locatorStreeAddressError)
+                pass
+            
+            locatorCity = frame.locator('input[autocomplete="address-level2"]')
+            await a_sleep(1)
+            if (len((await locatorCity.input_value(timeout=3000)).strip()) < 2):
+                await locator_press_sequentially2(locatorStreeAddress, config["street"], random.randint(140, 180))
+                await a_sleep(0.5)
+                
+                # City
+                await locator_press_sequentially2(locatorCity, config["city"], random.randint(140, 180))
+                await a_sleep(1)
 
-            # State
-            await frame.locator('div[data-automation-id="state-drop-down"] select').select_option(config["state"])
-            await a_sleep(2)
+                # State
+                await frame.locator('div[data-automation-id="state-drop-down"] select').select_option(config["state"])
+                await a_sleep(2)
 
-            # Zip code
-            await locator_press_sequentially2(frame.locator('input[autocomplete="postal-code"]'), config["zip_code"], random.randint(140, 180))
-            await a_sleep(3)
+                # Zip code
+                await locator_press_sequentially2(frame.locator('input[autocomplete="postal-code"]'), config["zip_code"], random.randint(140, 180))
+                await a_sleep(3)
 
             #await a_sleep(3000)
 
@@ -871,7 +905,7 @@ async def run (config):
             except Exception as e:
                 print(e)
 
-            await (await a_sleep(2, page.locator, 'button[aria-label="Claim your free 30-day trial"]')).click(timeout=random.randint(2000, 3000))
+            await (await a_sleep(2, page.locator, 'button[aria-label*="Claim your"]')).click(timeout=random.randint(2000, 3000))
         except Exception as e:
             
             try:
@@ -905,7 +939,7 @@ async def run (config):
                 print('... failed')
                 pass
 
-            await (await a_sleep(0, page.locator, 'button[aria-label="Claim your free 30-day trial"]')).click(timeout=random.randint(5000, 7000))
+            await (await a_sleep(0, page.locator, 'button[aria-label*="Claim your"]')).click(timeout=random.randint(5000, 7000))
             
             
         await a_sleep(1)
@@ -1070,7 +1104,7 @@ def restore_txt (file_path, remaining_lines):
 async def main():
     while True:
         success = None
-        imaginated = False #None to disable, False to enbale imagination of accounts (for tests)
+        imaginated = None #None to disable, False to enbale imagination of accounts (for tests)
         try:
             account = None
             proxy = None
@@ -1088,7 +1122,8 @@ async def main():
                     account = None
                     name = generate_name()
                     today_year = datetime.today().year
-                    account = [(name['first_name']+(name['last_name'][0:-2])+generate_random_string(random.randint(2, 3))+str(random.randint(1956, today_year - 21))+('@yahoo.com' if (random.randint(0, 1) == 0) else '@yahoo.com')).lower(), name['password']]
+                    #account = [(name['first_name']+(name['last_name'][0:-2])+generate_random_string(random.randint(2, 3))+str(random.randint(today_year - 70, today_year - 21))+('@yahoo.com' if (random.randint(0, 1) == 0) else '@yahoo.com')).lower(), name['password']]
+                    account = [(name['first_name']+(name['last_name'])+str(random.randint(today_year - 70, today_year - 21))+('@yahoo.com' if (random.randint(0, 1) == 0) else '@yahoo.com')).lower(), name['password']]
                     imaginated = True
                     print(account)
                     print(name)
