@@ -630,6 +630,11 @@ async def randomButtonClick (page):
             await a_sleep(5)
             break
             
+async def detectCaptcha (page):
+    if (page.url is None or page.url.find('blocked') >= 0):
+        return True
+    return False
+
 async def bringToFront (page):
     cdp = await page.context.new_cdp_session(page) 
     await cdp.send("Page.bringToFront", {}); # execute_cdp_cmd
@@ -647,6 +652,9 @@ async def randomClicks (page):
             raise(e0)
         except:
             pass
+        finally:
+            if (await detectCaptcha(page)):
+                return
 
 async def locator_press_sequentially2 (locator, data, nearDealy=100, humanErrors=True):
     print('locator_press_sequentially2: ', str(locator), str(data))
@@ -714,6 +722,9 @@ async def run (config):
         await randomClicks(page)
         await a_sleep(2)
         await bringToFront(page)
+        if (await detectCaptcha(page)):
+            print("!captcha")
+            return None
         
         try:
             if ((page.url.split('://')[1].split('/')[0]) != 'www.walmart.com'):
@@ -731,7 +742,7 @@ async def run (config):
         except PlaywrightTimeoutError:
             is_captcha = True
         
-        if (is_captcha):
+        if (is_captcha or await detectCaptcha(page)):
             print("!captcha")
             return None
         
@@ -747,7 +758,7 @@ async def run (config):
         except PlaywrightTimeoutError:
             is_captcha = True
             
-        if (is_captcha):
+        if (is_captcha or await detectCaptcha(page)):
             print("!captcha")
             return None
         
@@ -807,6 +818,9 @@ async def run (config):
             config["password"] = password_new_tmp
             pass
 
+        if (await detectCaptcha(page)):
+            return None
+
         code = "0"
         leftTries = 50
         while (code is None or code == "" or code == "0"):
@@ -843,7 +857,7 @@ async def run (config):
         await a_sleep(10, page.get_by_text, "Continue & add payment method", 'click(timeout=30000)')
 
         print("adding payment method")
-        #return ###
+        #return False
 
         # Danger zone
         try:
@@ -1043,9 +1057,12 @@ async def run (config):
         except:
             pass
         
-        greenCode = await (await a_sleep(2, page.locator, 'div span.green')).first.text_content()
-        if (not(greenCode)):
-            return None
+        greenCode = None
+        try:
+            greenCode = await (await a_sleep(2, page.locator, 'div span.green')).first.text_content()
+        finally:
+            if (not(greenCode)):
+                return False
         
         try:
             await page.screenshot(path="screenshot.png", full_page=True)
@@ -1096,6 +1113,7 @@ async def run (config):
         except:
             pass
         print('Done.[Closing]')
+    return False
 
 # async def main(parallel_workers=5):
 #     configs = [
@@ -1229,24 +1247,26 @@ def main():
             }
             success = asyncio.run(run(config)) # await run(config)
         except (KeyboardInterrupt, SystemExit, asyncio.exceptions.CancelledError) as e0:
-            success = None
+            success = True
             print('KEYBOARD INTERRUPT')
             print(e0.__class__.__name__)
         except Exception as e0:
             success = False
             print(e0)
             print(traceback.format_exc())
-        print('success: ', success)
-        if (not(not(success))):
+        #print('success: ', success)
+        if (not(not(success)) and success != True):
             print("Process completed successfully. ", success)
             (error, greenCode, phonenumber, email, password, fullname, city, state) = success
             print(f"{bcolors.OKGREEN} SUCCESS: {greenCode}{bcolors.ENDC}")
             break
         else:
+            if (success is None):
+                print('CAPTCHA AGAIN')
             if (not imaginated):
                 restore_txt('accounts.txt', [':'.join(account)])
             restore_txt('cards.txt', ['|'.join(card)])
-            if (success is None):
+            if (success == True):
                 restore_txt('proxies.txt', [':'.join(proxy)]) # NO, only for KeyboardInterrupt
                 try:
                     sys.exit(1)
