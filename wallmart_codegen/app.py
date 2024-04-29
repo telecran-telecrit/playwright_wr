@@ -1246,8 +1246,8 @@ def main():
             if (not imaginated):
                 restore_txt('accounts.txt', [':'.join(account)])
             restore_txt('cards.txt', ['|'.join(card)])
-            #restore_txt('proxies.txt', [':'.join(proxy)]) # NO
             if (success is None):
+                restore_txt('proxies.txt', [':'.join(proxy)]) # NO, only for KeyboardInterrupt
                 try:
                     sys.exit(1)
                 finally:
