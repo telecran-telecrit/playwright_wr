@@ -6,6 +6,7 @@ import csv
 import random
 import sys
 import os
+import signal
 import urllib.request
 import requests
 
@@ -88,6 +89,8 @@ async def createUndetectedWebcontext (suf="https://bing.com", headless=_HEADLESS
     
     try:
         rm_r(cookieDir)
+    except (KeyboardInterrupt, SystemExit, asyncio.exceptions.CancelledError) as e0:
+        raise(e0)
     except:
         pass
     os.makedirs(os.path.abspath(cookieDir+'Default/'), exist_ok=True) # for default_preferences
@@ -264,6 +267,8 @@ async def createUndetectedWebcontext (suf="https://bing.com", headless=_HEADLESS
         await page.route('**/*', routing)
         if (_LOAD_COOKIES):
             nice = load_cookies2(page, suf, False)
+    except (KeyboardInterrupt, SystemExit, asyncio.exceptions.CancelledError) as e0:
+        raise(e0)
     except:
         print(traceback.format_exc())
         playwright = None # TODO close
@@ -434,11 +439,15 @@ def generate_fake_address(proxy = None): # {'address1': '37600 Sycamore Street',
                     try:
                         res['address1'] = random_address.real_random_address_by_postal_code(data['zip'])['address1'] 
                         res['state'] = random_address.real_random_address_by_postal_code(data['zip'])['state']
+                    except (KeyboardInterrupt, SystemExit, asyncio.exceptions.CancelledError) as e0:
+                        raise(e0)
                     except:
                         res = random_address.real_random_address_by_state(str(res['state']))
                         pass
                         #res['address1'] = (data['timezone'].split('/')[1] if ('/' in data['timezone']) else data['timezone'].split('/')[0]) + ' street'
                     res['postalCode'] = data['zip']
+            except (KeyboardInterrupt, SystemExit, asyncio.exceptions.CancelledError) as e0:
+                raise(e0)
             except:
                 print(traceback.format_exc())
                 pass
@@ -465,6 +474,8 @@ def generate_fake_address(proxy = None): # {'address1': '37600 Sycamore Street',
         del res['postalCode']
         del res['address1']
         del res['address2']
+    except (KeyboardInterrupt, SystemExit, asyncio.exceptions.CancelledError) as e0:
+        raise(e0)
     except:
         pass
     os.environ['HTTP_PROXY'] = ''
@@ -539,11 +550,15 @@ async def a_sleep (timeout=0, page_locator=None, title='', locator_action='', me
     (t, r) = v_sleep(timeout = timeout, page_locator = page_locator, title = title, method = None)
     try:
         r = await r
+    except (KeyboardInterrupt, SystemExit, asyncio.exceptions.CancelledError) as e0:
+        raise(e0)
     except:
         pass
     if (page_locator is not None and r is not None):
         try:
             await r.scroll_into_view_if_needed(timeout=3000)
+        except (KeyboardInterrupt, SystemExit, asyncio.exceptions.CancelledError) as e0:
+            raise(e0)
         except Exception as locscrollError:
             print(locscrollError)
         m = r
@@ -565,9 +580,11 @@ async def a_sleep (timeout=0, page_locator=None, title='', locator_action='', me
                 m = await m
     try:
         await method(t)
+    except (KeyboardInterrupt, SystemExit, asyncio.exceptions.CancelledError) as e0:
+        raise(e0)
     except:
         method(t)
-    return r
+    return r       
 
 #def s_sleep (timeout=0, title='', method=asyncio.sleep):
 #    loop = asyncio.get_event_loop()
@@ -626,6 +643,8 @@ async def randomClicks (page):
             await randomButtonClick(page)
             await a_sleep(1.5)
             await bringToFront(page)
+        except (KeyboardInterrupt, SystemExit, asyncio.exceptions.CancelledError) as e0:
+            raise(e0)
         except:
             pass
 
@@ -634,15 +653,21 @@ async def locator_press_sequentially2 (locator, data, nearDealy=100, humanErrors
     i = 0
     try:
         await locator.clear()
+    except (KeyboardInterrupt, SystemExit, asyncio.exceptions.CancelledError) as e0:
+        raise(e0)
     except:
         pass
     for h in data:        
         if (humanErrors and random.randint(0, 10) == 0):
             try:
                 await locator.press_sequentially(data[i + 1], delay=random.randint(nearDealy, nearDealy+200))
+            except (KeyboardInterrupt, SystemExit, asyncio.exceptions.CancelledError) as e0:
+                raise(e0)
             except:
                 try:
                     await locator.press_sequentially(data[i - 1], delay=random.randint(nearDealy, nearDealy+200))
+                except (KeyboardInterrupt, SystemExit, asyncio.exceptions.CancelledError) as e0:
+                    raise(e0)
                 except:
                     await locator.press_sequentially(h, delay=random.randint(nearDealy, nearDealy+200))
             await a_sleep(1)
@@ -676,7 +701,7 @@ async def run (config):
         #await stealth_async(page)
         
     (context, page, background_page, playwright) = await createUndetectedWebcontext("https://walmart.com/", proxy = config) 
-    try:    
+    try:   
         try:
             await page.goto("https://www.walmart.com/", # "https://internet.yandex.ru", 
                             timeout=random.randint(5000, 7000),  # https://www.walmart.com/account/login?vid=oaoh
@@ -749,6 +774,8 @@ async def run (config):
                 await a_sleep(7)
                 try:
                     phone = await purchase_number()
+                except (KeyboardInterrupt, SystemExit, asyncio.exceptions.CancelledError) as e0:
+                    raise(e0)
                 except:
                     phone = False
 
@@ -757,6 +784,8 @@ async def run (config):
             await a_sleep(1)
 
             new_password_input_by_name = page.locator('[name="newPassword"]')
+        except (KeyboardInterrupt, SystemExit, asyncio.exceptions.CancelledError) as e0:
+            raise(e0)
         except:
             print(traceback.format_exc())
             new_password_input_by_name = page.locator('[name="password"]')
@@ -772,6 +801,8 @@ async def run (config):
             await a_sleep(1)
             await page.get_by_text("Continue").last.click()
             await a_sleep(3)
+        except (KeyboardInterrupt, SystemExit, asyncio.exceptions.CancelledError) as e0:
+            raise(e0)
         except:
             config["password"] = password_new_tmp
             pass
@@ -852,6 +883,8 @@ async def run (config):
             await a_sleep(4)
             try:
                 await locator_press_sequentially2(frame.locator('input[type="tel"]'), phone["phonenumber"], random.randint(140, 180))
+            except (KeyboardInterrupt, SystemExit, asyncio.exceptions.CancelledError) as e0:
+                raise(e0)
             except:
                 await locator_press_sequentially2(frame.locator('input[autocomplete="tel-national"]'), phone["phonenumber"], random.randint(140, 180))
             await a_sleep(3)
@@ -865,6 +898,8 @@ async def run (config):
                 await a_sleep(0.5)
                 await locatorStreeAddress.press('Enter')
                 await a_sleep(0.5)
+            except (KeyboardInterrupt, SystemExit, asyncio.exceptions.CancelledError) as e0:
+                raise(e0)
             except Exception as locatorStreeAddressError:
                 print(locatorStreeAddressError)
                 pass
@@ -892,30 +927,42 @@ async def run (config):
             # Continue
             try:
                 await (await a_sleep(5, frame.locator, "button[data-test-id='continueBtn']")).click(timeout=random.randint(9000, 11000))
+            except (KeyboardInterrupt, SystemExit, asyncio.exceptions.CancelledError) as e0:
+                raise(e0)
             except Exception as e:
                 print(e)
             
             try:
                 await a_sleep(5, page.locator, "button[data-test-id='continueBtn']", 'click(timeout='+str(random.randint(4000, 5000))+')')
+            except (KeyboardInterrupt, SystemExit, asyncio.exceptions.CancelledError) as e0:
+                raise(e0)
             except Exception as e:
                 print(e)
                 
             try:
                 await a_sleep(5, page.locator, "button[data-test-id='continueBtn']", 'click(timeout='+str(random.randint(3000, 4000))+')')
+            except (KeyboardInterrupt, SystemExit, asyncio.exceptions.CancelledError) as e0:
+                raise(e0)
             except Exception as e:
                 print(e)
 
             await (await a_sleep(2, page.locator, 'button[aria-label*="Claim your"]')).click(timeout=random.randint(2000, 3000))
+        except (KeyboardInterrupt, SystemExit, asyncio.exceptions.CancelledError) as e0:
+            raise(e0)
         except Exception as e:
             
             try:
                 await a_sleep(5, frame.locator, "button[data-test-id='continueBtn']", 'click(timeout='+str(random.randint(3000, 4000))+')')
+            except (KeyboardInterrupt, SystemExit, asyncio.exceptions.CancelledError) as e0:
+                raise(e0)
             except Exception as e:
                 print('... failed')
                 pass
             
             try:
                 await a_sleep(2, page.locator, 'button[aria-label="Close dialog"]', 'click(timeout=1500)')
+            except (KeyboardInterrupt, SystemExit, asyncio.exceptions.CancelledError) as e0:
+                raise(e0)
             except Exception as e:
                 print('... failed')
                 pass
@@ -923,18 +970,24 @@ async def run (config):
             try:
                 #await page.locator('button').filter(has_text = "Leave").first.click()
                 await (await a_sleep(1.5, page.locator, 'button:has-text("Leave")')).first.click(timeout=2000)
+            except (KeyboardInterrupt, SystemExit, asyncio.exceptions.CancelledError) as e0:
+                raise(e0)
             except Exception as e:
                 print('... failed')
                 pass
             
             try:
                 await (await a_sleep(2, page.get_by_text, "Continue & add payment method")).click(timeout=random.randint(2000, 3000))
+            except (KeyboardInterrupt, SystemExit, asyncio.exceptions.CancelledError) as e0:
+                raise(e0)
             except Exception as e:
                 print('... failed')
                 pass
             
             try:
                 await (await a_sleep(5, page.locator, "button[data-test-id='continueBtn']")).click(timeout=random.randint(1000, 2000))
+            except (KeyboardInterrupt, SystemExit, asyncio.exceptions.CancelledError) as e0:
+                raise(e0)
             except Exception as e:
                 print('... failed')
                 pass
@@ -957,18 +1010,24 @@ async def run (config):
             
         try:
             await page.locator('button[aria-label*="months of Apple Music"]').filter(has_text = "Get offer").first.click()
+        except (KeyboardInterrupt, SystemExit, asyncio.exceptions.CancelledError) as e0:
+            raise(e0)
         except Exception as e:
             print('1')
             try:
                 l = page.locator('div:has-text("5 free months")').filter(has = page.locator('button')).last
                 if (await l.is_visible()):
                     await l.locator('button').first.click()
+            except (KeyboardInterrupt, SystemExit, asyncio.exceptions.CancelledError) as e0:
+                raise(e0)
             except Exception as e:
                 print('2')
                 try:
                     l = page.locator('h3:has-text("Apple Music")').filter(has = page.locator('button')).first
                     if (await l.is_visible()):
                         await l.get_by_role('button').first.click()
+                except (KeyboardInterrupt, SystemExit, asyncio.exceptions.CancelledError) as e0:
+                    raise(e0)
                 except Exception as e:
                     print('3')
                     raise e
@@ -979,6 +1038,8 @@ async def run (config):
             contentshort = await page.content()
             with open("contentshort.htm", 'w+', encoding='utf-8') as file:
                 file.write(contentshort)
+        except (KeyboardInterrupt, SystemExit, asyncio.exceptions.CancelledError) as e0:
+            raise(e0)
         except:
             pass
         
@@ -988,6 +1049,8 @@ async def run (config):
         
         try:
             await page.screenshot(path="screenshot.png", full_page=True)
+        except (KeyboardInterrupt, SystemExit, asyncio.exceptions.CancelledError) as e0:
+            raise(e0)
         except:
             pass
 
@@ -1003,20 +1066,36 @@ async def run (config):
                     if (expiry > 0):
                         cookies.append(cookie)
                 pickle.dump(cookies, open(cookieSimpleFile, "wb+"))
+        except (KeyboardInterrupt, SystemExit, asyncio.exceptions.CancelledError) as e0:
+            raise(e0)
         except:
             pass
         
         await context.close() #await browser.close()
         return (0, greenCode, str("+1") + phone["phonenumber"] if (not(phone["phonenumber"][0] == '+') and not(phone["phonenumber"][0] == '1')) else phone["phonenumber"], config["email"], config["password"], config["first_name"] + ' ' + config["last_name"], config["city"], config["state"])
+    except (KeyboardInterrupt, SystemExit, asyncio.exceptions.CancelledError) as ke: # avoid Playwright bug https://github.com/microsoft/playwright-python/issues/1170
+        print('KeyboardInterrupt 0')
+        context = None
+        playwright = None
+        raise ke
+    else:
+        print('EXCEPTION NONE.')
     finally:
+        print('Closing...', context, playwright)
         _BLOCK_IMAGES = _BLOCK_IMAGES_old
         try:
             if (context is not None):
                 await context.close()
+                context = None
             if (playwright is not None):
                 await playwright.stop()
+                playwright = None
+            print(context, playwright)
+        except (KeyboardInterrupt, SystemExit, asyncio.exceptions.CancelledError) as e0:
+            raise(e0)
         except:
             pass
+        print('Done.[Closing]')
 
 # async def main(parallel_workers=5):
 #     configs = [
@@ -1101,7 +1180,7 @@ def restore_txt (file_path, remaining_lines):
 #     await asyncio.gather(*tasks)
 
 
-async def main():
+def main():
     while True:
         success = None
         imaginated = None #None to disable, False to enbale imagination of accounts (for tests)
@@ -1115,6 +1194,8 @@ async def main():
                 proxy = read_and_update_txt('proxies.txt')[0].split(':')
                 card = read_and_update_txt('cards.txt')
                 name = generate_name(username = account[0], userpass = account[1] if (len(account) >= 2) else None)
+            except (KeyboardInterrupt, SystemExit, asyncio.exceptions.CancelledError) as e0:
+                raise(e0)
             except:
                 #print(traceback.format_exc())
                 if (not account and imaginated is not None):
@@ -1146,8 +1227,12 @@ async def main():
             'proxy_server': proxy[0] + ':' + proxy[1], 'proxy_username': proxy[2], 'proxy_password': proxy[3],
             **address, **name,
             }
-            success = await run(config)
-        except (Exception, KeyboardInterrupt) as e0:
+            success = asyncio.run(run(config)) # await run(config)
+        except (KeyboardInterrupt, SystemExit, asyncio.exceptions.CancelledError) as e0:
+            success = None
+            print('KEYBOARD INTERRUPT')
+            print(e0.__class__.__name__)
+        except Exception as e0:
             success = False
             print(e0)
             print(traceback.format_exc())
@@ -1162,9 +1247,14 @@ async def main():
                 restore_txt('accounts.txt', [':'.join(account)])
             restore_txt('cards.txt', ['|'.join(card)])
             #restore_txt('proxies.txt', [':'.join(proxy)]) # NO
-            await a_sleep(60)
+            if (success is None):
+                try:
+                    sys.exit(1)
+                finally:
+                    os._exit(1) 
+            w_sleep(60)
             print("Retrying with next available data set...")
-        await a_sleep(1)
+        w_sleep(1)
 
 class bcolors:
     HEADER = '\033[95m'
@@ -1177,4 +1267,27 @@ class bcolors:
     UNDERLINE = '\033[4m'
     ENDC = '\033[0m'
 
-asyncio.run(main())
+
+#class InterruptHandler:
+#    def __init__(self):
+#        self.interrupted = False
+#
+#    def handle_signal(self, signum, frame):
+#        if self.interrupted:
+#            print("Quitting now!")
+#            try:
+#                sys.exit(1)
+#            finally:
+#                os._exit(1)
+#        else:
+#            print("Quitting in 10 sec!")
+#            self.interrupted = True
+#            time.sleep(10)
+#            try:
+#                sys.exit(1)
+#            finally:
+#                os._exit(1)
+#interrupt_handler = InterruptHandler()
+#signal.signal(signal.SIGINT, interrupt_handler.handle_signal)
+
+main()
